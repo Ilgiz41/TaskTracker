@@ -1,21 +1,29 @@
 package org.example;
 
-import org.example.datasource.mapper.TaskMapper;
-import org.example.datasource.repository.TaskRepository;
-import org.example.datasource.repositoryservice.TaskRepositoryService;
-import org.example.domain.model.Task;
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
 
-import java.time.LocalDateTime;
 
-public class Main {
+public class Main extends Application {
+
     public static void main(String[] args) {
-            TaskRepository taskRepository = new TaskRepositoryService();
-            Task task = new Task("Бебра", "сделать бебру", LocalDateTime.now());
-            taskRepository.save(TaskMapper.toEntity(task));
-            Task task1 = TaskMapper.toDomain(taskRepository.findAll().get(0));
-            System.out.println(task1.getId());
-            System.out.println(task1.getTitle());
-            System.out.println(task1.getDescription());
-            System.out.println(task1.getDate());
-        }
+        launch(args);
     }
+
+    @Override
+    public void start(Stage stage) throws Exception {
+
+        Application.setUserAgentStylesheet(new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainScene.fxml"));
+        Parent root = loader.load();
+
+        Scene scene = new Scene(root, 800, 600);
+
+        stage.setTitle("Мой Таск Трекер");
+        stage.setScene(scene);
+        stage.show();
+    }
+}

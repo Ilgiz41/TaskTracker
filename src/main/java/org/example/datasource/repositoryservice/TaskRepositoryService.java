@@ -29,17 +29,22 @@ public class TaskRepositoryService implements TaskRepository {
     @Override
     public List<TaskEntity> findAll() {
         try (Session session = sessionFactory.openSession()) {
-        return session.createQuery("from TaskEntity").list();}
+        return session.createQuery("from TaskEntity").list();
+        }
     }
 
     @Override
     public void deleteById(Long id) {
-
+        try (Session session = sessionFactory.openSession()) {
+            session.remove(session.get(TaskEntity.class, id));
+        }
     }
 
     @Override
-    public List<TaskEntity> findByTitle(String title) {
-        return List.of();
+    public TaskEntity findByTitle(String title) {
+        try (Session session = sessionFactory.openSession()) {
+            return session.get(TaskEntity.class, title);
+        }
     }
 
     @Override
@@ -49,7 +54,9 @@ public class TaskRepositoryService implements TaskRepository {
 
     @Override
     public void delete(TaskEntity entity) {
-
+        try (Session session = sessionFactory.openSession()) {
+            session.remove(entity);
+        }
     }
 
     private void executeInTransaction(Consumer<Session> action) {

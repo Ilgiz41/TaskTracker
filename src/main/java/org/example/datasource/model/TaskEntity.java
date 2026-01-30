@@ -27,12 +27,17 @@ public class TaskEntity {
     @Getter @Setter
     private LocalDateTime date;
 
+    @Column
+    @Getter @Setter
+    private boolean completed;
+
     public TaskEntity() {}
 
-    public TaskEntity(long id, String title, String description, LocalDateTime date) {
+    public TaskEntity(long id, String title, String description, LocalDateTime date, boolean completed) {
         this.id = id;
         this.title = title;
         this.description = description;
         this.date = date;
+        this.completed = completed;
     }
 }

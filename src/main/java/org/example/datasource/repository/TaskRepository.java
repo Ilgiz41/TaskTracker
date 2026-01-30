@@ -16,6 +16,6 @@ public interface TaskRepository extends CrudRepository<TaskEntity, Long> {
     @Override
     void deleteById(Long id);
 
-    List<TaskEntity> findByTitle(String title);
+    TaskEntity findByTitle(String title);
     List<TaskEntity> findByDescription(String description);
 }

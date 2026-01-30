@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Rectangle?>
+
+<StackPane prefHeight="650.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.MainController">
+   <children>
+      <BorderPane>
+         <top>
+            <HBox alignment="CENTER_LEFT" spacing="20.0" style="-fx-background-color: -color-bg-subtle; -fx-border-color: -color-border-muted; -fx-border-width: 0 0 1 0;">
+               <padding><Insets bottom="15" left="25" right="25" top="15" /></padding>
+               <children>
+                  <Label style="-fx-font-size: 24px; -fx-font-weight: bold;" text="Task Tracker" />
+                  <Region HBox.hgrow="ALWAYS" />
+                  <Button onAction="#showOverlay" styleClass="accent" text="Новая задача" prefHeight="40.0" prefWidth="150.0"/>
+               </children>
+            </HBox>
+         </top>
+         <center>
+            <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: -color-bg-default;">
+               <content>
+                  <VBox fx:id="taskContainer" spacing="15.0">
+                     <padding><Insets bottom="30" left="30" right="30" top="30" /></padding>
+                  </VBox>
+               </content>
+            </ScrollPane>
+         </center>
+      </BorderPane>
+
+      <StackPane fx:id="overlay" visible="false">
+         <children>
+            <Rectangle fill="#00000088" height="2000.0" width="2000.0" />
+
+            <VBox maxWidth="400.0" maxHeight="550.0" spacing="15.0"
+                  StackPane.alignment="CENTER"
+                  style="-fx-background-color: -color-bg-default; -fx-background-radius: 15; -fx-border-color: -color-border-muted; -fx-border-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 20, 0, 0, 0);">
+               <padding><Insets bottom="30" left="30" right="30" top="30" /></padding>
+               <children>
+                  <Label style="-fx-font-size: 20px; -fx-font-weight: bold;" text="Новая задача" />
+
+                  <VBox spacing="5.0">
+                     <Label text="Название" style="-fx-text-fill: -color-fg-muted;" />
+                     <TextField fx:id="titleField" promptText="Например: Купить хлеб" />
+                  </VBox>
+
+                  <VBox spacing="5.0">
+                     <Label text="Описание" style="-fx-text-fill: -color-fg-muted;" />
+                     <TextArea fx:id="descriptionField" prefHeight="80.0" promptText="Детали задачи..." wrapText="true" />
+                  </VBox>
+
+                  <VBox spacing="5.0">
+                     <Label text="Дата выполнения" style="-fx-text-fill: -color-fg-muted;" />
+                     <DatePicker fx:id="datePicker" maxWidth="Infinity" />
+                  </VBox>
+
+                  <Label fx:id="errorLabel" managed="false" visible="false" wrapText="true"
+                         style="-fx-text-fill: #e74c3c; -fx-font-size: 13px; -fx-font-weight: bold;" />
+
+                  <HBox alignment="CENTER_RIGHT" spacing="15.0">
+                     <padding><Insets top="10" /></padding>
+                     <children>
+                        <Button onAction="#hideOverlay" text="Отмена" />
+                        <Button onAction="#handleSave" styleClass="accent" text="Создать" prefWidth="120.0" />
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+         </children>
+      </StackPane>
+   </children>
+</StackPane>

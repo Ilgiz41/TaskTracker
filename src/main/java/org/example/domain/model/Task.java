@@ -17,10 +17,13 @@ public class Task {
     private String description;
     @Getter @Setter
     private LocalDateTime date;
+    @Getter @Setter
+    private boolean completed;
 
-    public Task(String title, String description, LocalDateTime date) {
+    public Task(String title, String description, LocalDateTime date, boolean completed) {
         this.title = title;
         this.description = description;
         this.date = date;
+        this.completed = completed;
     }
 }
