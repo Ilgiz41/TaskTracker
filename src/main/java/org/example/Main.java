@@ -5,6 +5,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.example.controller.MainController;
 
 
 public class Main extends Application {
@@ -21,9 +22,12 @@ public class Main extends Application {
         Parent root = loader.load();
 
         Scene scene = new Scene(root, 800, 600);
-
         stage.setTitle("Мой Таск Трекер");
         stage.setScene(scene);
         stage.show();
+
+        MainController mainController = loader.getController();
+        mainController.refreshTaskList();
+        mainController.updateDateDisplay();
     }
 }

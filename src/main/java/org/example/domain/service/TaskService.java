@@ -1,6 +1,8 @@
 package org.example.domain.service;
 
+import lombok.Getter;
 import org.example.datasource.mapper.TaskMapper;
+import org.example.datasource.model.TaskEntity;
 import org.example.datasource.repository.TaskRepository;
 import org.example.domain.model.Task;
 import org.example.exceptions.ValidationException;
@@ -8,6 +10,7 @@ import org.example.util.TaskRepositoryUtil;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TaskService {
 
     private final TaskRepository taskRepositoryService;
+    @Getter
     private Map<Long, Task> taskCache;
 
     public TaskService() {
@@ -31,8 +35,23 @@ public class TaskService {
             throw new ValidationException("Date cannot be null");
         }
 
+        if (date.isBefore(LocalDate.now())) {
+            throw new ValidationException("Date cannot be before current date");
+        }
+
         Task task = new Task(title, description, date, false);
+        TaskEntity taskEntity = taskRepositoryService.save(TaskMapper.toEntity(task));
+        taskCache.put(taskEntity.getId(), TaskMapper.toDomain(taskEntity));
+    }
+
+    public void updateTask(Task task){
+        taskCache.put(task.getId(), task);
         taskRepositoryService.save(TaskMapper.toEntity(task));
+    }
+
+    public void deleteTask(Task task){
+        taskCache.remove(task.getId());
+        taskRepositoryService.delete(TaskMapper.toEntity(task));
     }
 
     public void loadCache() {
@@ -67,5 +86,11 @@ public class TaskService {
            taskRepositoryService.deleteById(task.getId());
         });
     }
-}
 
+    public List<Task> getFilteredTasksByDate(LocalDate date){
+        return taskCache.values().stream()
+                .filter(task -> task.getDate().equals(date))
+                .sorted(Comparator.comparing(Task::isCompleted))
+                .toList();
+    }
+}

@@ -15,8 +15,9 @@ public class TaskRepositoryService implements TaskRepository {
     private final SessionFactory sessionFactory = HibernateUtil.getSessionFactory();
 
     @Override
-    public void save(TaskEntity entity) {
+    public TaskEntity save(TaskEntity entity) {
         executeInTransaction(session -> session.merge(entity));
+        return entity;
     }
 
     @Override

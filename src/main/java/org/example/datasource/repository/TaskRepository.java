@@ -8,7 +8,7 @@ import java.util.Optional;
 public interface TaskRepository extends CrudRepository<TaskEntity, Long> {
 
     @Override
-    void save(TaskEntity entity);
+    TaskEntity save(TaskEntity entity);
     @Override
     Optional<TaskEntity> findById(Long id);
     @Override
