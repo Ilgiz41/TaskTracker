@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @NoArgsConstructor
@@ -16,11 +17,11 @@ public class Task {
     @Getter @Setter
     private String description;
     @Getter @Setter
-    private LocalDateTime date;
+    private LocalDate date;
     @Getter @Setter
     private boolean completed;
 
-    public Task(String title, String description, LocalDateTime date, boolean completed) {
+    public Task(String title, String description, LocalDate date, boolean completed) {
         this.title = title;
         this.description = description;
         this.date = date;

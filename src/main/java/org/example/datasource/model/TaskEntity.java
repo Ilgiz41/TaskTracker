@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "Task")
@@ -25,7 +25,7 @@ public class TaskEntity {
 
     @Column
     @Getter @Setter
-    private LocalDateTime date;
+    private LocalDate date;
 
     @Column
     @Getter @Setter
@@ -33,7 +33,7 @@ public class TaskEntity {
 
     public TaskEntity() {}
 
-    public TaskEntity(long id, String title, String description, LocalDateTime date, boolean completed) {
+    public TaskEntity(long id, String title, String description, LocalDate date, boolean completed) {
         this.id = id;
         this.title = title;
         this.description = description;

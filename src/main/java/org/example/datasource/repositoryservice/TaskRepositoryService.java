@@ -35,9 +35,7 @@ public class TaskRepositoryService implements TaskRepository {
 
     @Override
     public void deleteById(Long id) {
-        try (Session session = sessionFactory.openSession()) {
-            session.remove(session.get(TaskEntity.class, id));
-        }
+        executeInTransaction(session -> session.remove(session.get(TaskEntity.class, id)));
     }
 
     @Override
@@ -54,9 +52,7 @@ public class TaskRepositoryService implements TaskRepository {
 
     @Override
     public void delete(TaskEntity entity) {
-        try (Session session = sessionFactory.openSession()) {
-            session.remove(entity);
-        }
+        executeInTransaction(session -> session.remove(entity));
     }
 
     private void executeInTransaction(Consumer<Session> action) {

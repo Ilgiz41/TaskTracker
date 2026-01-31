@@ -23,6 +23,12 @@ public class MainController {
 
     @FXML
     private void showOverlay() {
+        clearErrorState();
+        titleField.clear();
+        descriptionField.clear();
+        titleField.setStyle("");
+        descriptionField.setStyle("");
+        datePicker.setValue(LocalDate.now());
         overlay.setVisible(true);
     }
 
@@ -43,8 +49,16 @@ public class MainController {
         } catch (ValidationException ex){
             errorLabel.setText(ex.getMessage());
             errorLabel.setVisible(true);
+            errorLabel.setManaged(true);
 
             titleField.setStyle("-fx-border-color: #e74c3c;");
         }
     }
+
+    private void clearErrorState(){
+        errorLabel.setVisible(false);
+        errorLabel.setManaged(false);
+        errorLabel.setText("");
+    }
+
 }
