@@ -26,7 +26,7 @@ public class TaskService {
         this.taskCache = new ConcurrentHashMap<>();
     }
 
-    public void createAndSave(String title, String description, LocalDate date, LocalDate selectedDate) {
+    public void createAndSave(String title, String description, LocalDate date, LocalDate selectedDate, int priority) {
         if (title == null || title.isEmpty()) {
             throw new ValidationException("Title cannot be empty");
         }
@@ -39,7 +39,7 @@ public class TaskService {
             throw new ValidationException("Date cannot be before current date");
         }
 
-        Task task = new Task(title, description, date, false);
+        Task task = new Task(title, description, date, false, priority);
         TaskEntity taskEntity = taskRepositoryService.save(TaskMapper.toEntity(task));
         if (selectedDate.equals(taskEntity.getDate())) {
             taskCache.put(taskEntity.getId(), TaskMapper.toDomain(taskEntity));
@@ -83,8 +83,9 @@ public class TaskService {
         });
     }
 
-    public List<Task> getSortedTasksByDate(){
+    public List<Task> getSortedTaskByPriority(){
         return taskCache.values().stream()
+                .sorted(Comparator.comparing(Task::getPriority).reversed())
                 .sorted(Comparator.comparing(Task::isCompleted))
                 .toList();
     }

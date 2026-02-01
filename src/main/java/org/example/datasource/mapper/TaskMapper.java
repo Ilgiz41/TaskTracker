@@ -12,10 +12,11 @@ public class TaskMapper {
         task.setDescription(taskEntity.getDescription());
         task.setDate(taskEntity.getDate());
         task.setCompleted(taskEntity.isCompleted());
+        task.setPriority(taskEntity.getPriority());
         return task;
     }
 
     public static TaskEntity toEntity(Task domain) {
-        return new TaskEntity(domain.getId(), domain.getTitle(), domain.getDescription(), domain.getDate(), domain.isCompleted());
+        return new TaskEntity(domain.getId(), domain.getTitle(), domain.getDescription(), domain.getDate(), domain.isCompleted(),  domain.getPriority());
     }
 }

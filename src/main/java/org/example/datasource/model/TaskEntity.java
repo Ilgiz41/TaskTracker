@@ -31,13 +31,18 @@ public class TaskEntity {
     @Getter @Setter
     private boolean completed;
 
+    @Column
+    @Getter @Setter
+    private int priority;
+
     public TaskEntity() {}
 
-    public TaskEntity(long id, String title, String description, LocalDate date, boolean completed) {
+    public TaskEntity(long id, String title, String description, LocalDate date, boolean completed, int priority) {
         this.id = id;
         this.title = title;
         this.description = description;
         this.date = date;
         this.completed = completed;
+        this.priority = priority;
     }
 }

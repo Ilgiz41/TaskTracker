@@ -11,7 +11,6 @@ import org.example.util.DomainServiceUtil;
 
 import java.time.LocalDate;
 
-
 public class Main extends Application {
 
     public static void main(String[] args) {
