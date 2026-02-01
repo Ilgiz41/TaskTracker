@@ -7,6 +7,7 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -31,6 +32,13 @@ public class TaskRepositoryService implements TaskRepository {
     public List<TaskEntity> findAll() {
         try (Session session = sessionFactory.openSession()) {
         return session.createQuery("from TaskEntity").list();
+        }
+    }
+
+    @Override
+    public List<TaskEntity> findAllByDate(LocalDate date){
+        try (Session session = sessionFactory.openSession()) {
+            return session.createQuery("FROM TaskEntity WHERE date = :date").setParameter("date", date).getResultList();
         }
     }
 

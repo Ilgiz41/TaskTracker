@@ -6,6 +6,10 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.example.controller.MainController;
+import org.example.domain.service.TaskService;
+import org.example.util.DomainServiceUtil;
+
+import java.time.LocalDate;
 
 
 public class Main extends Application {
@@ -27,6 +31,8 @@ public class Main extends Application {
         stage.show();
 
         MainController mainController = loader.getController();
+        TaskService taskService = DomainServiceUtil.getTaskService();
+        taskService.loadCacheByDate(LocalDate.now());
         mainController.refreshTaskList();
         mainController.updateDateDisplay();
     }

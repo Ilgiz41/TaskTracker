@@ -9,6 +9,5 @@ public class DomainServiceUtil {
 
     static {
         taskService = new TaskService();
-        taskService.loadCache();
     }
 }

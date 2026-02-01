@@ -70,7 +70,7 @@ public class MainController {
             String description = descriptionField.getText();
             LocalDate date = datePicker.getValue();
 
-            taskService.createAndSave(title, description, date);
+            taskService.createAndSave(title, description, date, selectedDate);
             hideOverlay();
             refreshTaskList();
         } catch (ValidationException ex) {
@@ -86,7 +86,7 @@ public class MainController {
     public void refreshTaskList() {
         taskContainer.getChildren().clear();
 
-        List<Task> taskList = taskService.getFilteredTasksByDate(selectedDate);
+        List<Task> taskList = taskService.getSortedTasksByDate();
 
         updateStatistic(taskList);
 
@@ -143,14 +143,14 @@ public class MainController {
         MenuItem completeItem = new MenuItem(task.isCompleted() ? "Вернуть в работу" : "Завершить");
         completeItem.setOnAction(e -> {
             task.setCompleted(!task.isCompleted());
-            taskService.updateTask(task);
+            taskService.updateTask(task, selectedDate);
             refreshTaskList();
         });
 
         MenuItem moveItem = new MenuItem("Перенести на завтра");
         moveItem.setOnAction(e -> {
             task.setDate(task.getDate().plusDays(1));
-            taskService.updateTask(task);
+            taskService.updateTask(task, selectedDate);
             refreshTaskList();
         });
 
@@ -217,6 +217,7 @@ public class MainController {
 
     public void handlePrevDay() {
         selectedDate = selectedDate.minusDays(1);
+        taskService.loadCacheByDate(selectedDate);
         updateDateDisplay();
         refreshTaskList();
     }
@@ -228,6 +229,7 @@ public class MainController {
     public void handleCalendarAction() {
         if (hiddenDatePicker.getValue() != null) {
             selectedDate = hiddenDatePicker.getValue();
+            taskService.loadCacheByDate(selectedDate);
             updateDateDisplay();
             refreshTaskList();
         }
@@ -235,6 +237,7 @@ public class MainController {
 
     public void handleNextDay() {
         selectedDate = selectedDate.plusDays(1);
+        taskService.loadCacheByDate(selectedDate);
         updateDateDisplay();
         refreshTaskList();
     }
@@ -244,5 +247,18 @@ public class MainController {
         String formattedDate = selectedDate.format(formatter);
 
         currentDateLabel.setText(formattedDate);
+    }
+
+    @FXML
+    private void deleteAllTasksForDay() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Подтверждение");
+        alert.setHeaderText("Удалить все задачи на " + currentDateLabel.getText() + "?");
+        alert.setContentText("Это действие нельзя будет отменить.");
+
+        if (alert.showAndWait().get() == ButtonType.OK) {
+            taskService.deleteAllTasksForDate();
+            refreshTaskList();
+        }
     }
 }

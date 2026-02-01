@@ -26,7 +26,7 @@ public class TaskService {
         this.taskCache = new ConcurrentHashMap<>();
     }
 
-    public void createAndSave(String title, String description, LocalDate date) {
+    public void createAndSave(String title, String description, LocalDate date, LocalDate selectedDate) {
         if (title == null || title.isEmpty()) {
             throw new ValidationException("Title cannot be empty");
         }
@@ -41,11 +41,17 @@ public class TaskService {
 
         Task task = new Task(title, description, date, false);
         TaskEntity taskEntity = taskRepositoryService.save(TaskMapper.toEntity(task));
-        taskCache.put(taskEntity.getId(), TaskMapper.toDomain(taskEntity));
+        if (selectedDate.equals(taskEntity.getDate())) {
+            taskCache.put(taskEntity.getId(), TaskMapper.toDomain(taskEntity));
+        }
     }
 
-    public void updateTask(Task task){
-        taskCache.put(task.getId(), task);
+    public void updateTask(Task task, LocalDate selectedDate) {
+        if (selectedDate.equals(task.getDate())) {
+            taskCache.put(task.getId(), task);
+        } else {
+            taskCache.remove(task.getId());
+        }
         taskRepositoryService.save(TaskMapper.toEntity(task));
     }
 
@@ -54,28 +60,18 @@ public class TaskService {
         taskRepositoryService.delete(TaskMapper.toEntity(task));
     }
 
-    public void loadCache() {
-        List<Task> tasks = getTaskListFromRepository();
-
-        deleteOld(tasks);
+    public void loadCacheByDate(LocalDate date) {
+        List<Task> tasks = getTaskListFromRepository(date);
+        if (!taskCache.isEmpty()) {
+            taskCache.clear();
+        }
         for (Task task : tasks) {
             taskCache.put(task.getId(), task);
         }
     }
 
-    private void deleteOld(List<Task> tasks) {
-        List<Task> toDelete = tasks.stream()
-                .filter(task -> task.getDate() != null && task.getDate().isBefore(LocalDate.now().minusDays(3)))
-                .toList();
-
-        tasks.removeAll(toDelete);
-        if (!toDelete.isEmpty()) {
-            deleteTaskListFromRepository(toDelete);
-        }
-    }
-
-    private List<Task> getTaskListFromRepository(){
-        List<Task> tasks = taskRepositoryService.findAll().stream()
+    private List<Task> getTaskListFromRepository(LocalDate date) {
+        List<Task> tasks = taskRepositoryService.findAllByDate(date).stream()
                 .map(TaskMapper::toDomain)
                 .toList();
         return new ArrayList<>(tasks);
@@ -87,10 +83,15 @@ public class TaskService {
         });
     }
 
-    public List<Task> getFilteredTasksByDate(LocalDate date){
+    public List<Task> getSortedTasksByDate(){
         return taskCache.values().stream()
-                .filter(task -> task.getDate().equals(date))
                 .sorted(Comparator.comparing(Task::isCompleted))
                 .toList();
+    }
+
+    public void deleteAllTasksForDate() {
+        if (taskCache.isEmpty()) return;
+        deleteTaskListFromRepository(taskCache.values().stream().toList());
+        taskCache.clear();
     }
 }
