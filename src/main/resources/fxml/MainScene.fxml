@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Rectangle?>
+
+<StackPane prefHeight="750.0" prefWidth="1150.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.MainController">
+   <children>
+      <BorderPane>
+         <top>
+            <HBox alignment="CENTER_LEFT" spacing="20.0" style="-fx-background-color: -color-bg-subtle; -fx-border-color: -color-border-muted; -fx-border-width: 0 0 1 0;">
+               <padding><Insets bottom="15" left="25" right="25" top="15" /></padding>
+               <children>
+                  <Label style="-fx-font-size: 24px; -fx-font-weight: bold;" text="Task Tracker" />
+
+                  <Region HBox.hgrow="ALWAYS" />
+
+                  <HBox alignment="CENTER" spacing="30.0">
+                     <children>
+                        <HBox alignment="CENTER" spacing="10.0">
+                           <Button onAction="#handlePrevDay" style="-fx-cursor: hand;" styleClass="flat" text="←" />
+                           <StackPane>
+                              <children>
+                                 <Label fx:id="currentDateLabel" onMouseClicked="#openCalendar" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-cursor: hand; -fx-text-fill: -color-accent-emphasis;" text="Загрузка..." />
+                                 <DatePicker fx:id="hiddenDatePicker" onAction="#handleCalendarAction" prefHeight="0.0" prefWidth="0.0" style="-fx-opacity: 0;" />
+                              </children>
+                           </StackPane>
+                           <Button onAction="#handleNextDay" style="-fx-cursor: hand;" styleClass="flat" text="→" />
+                        </HBox>
+
+                        <HBox alignment="CENTER" spacing="10">
+                           <children>
+                              <Label text="Поиск по заголовку:" style="-fx-text-fill: -color-fg-muted; -fx-font-size: 13px;" />
+                              <TextField fx:id="searchField" prefWidth="200.0" promptText="Введите название..." style="-fx-background-radius: 10;" />
+                           </children>
+                        </HBox>
+                     </children>
+                  </HBox>
+
+                  <Region HBox.hgrow="ALWAYS" />
+
+                  <Button onAction="#showOverlay" prefHeight="40.0" prefWidth="150.0" styleClass="accent" text="Новая задача" />
+               </children>
+            </HBox>
+         </top>
+         <center>
+            <HBox VBox.vgrow="ALWAYS">
+               <children>
+                  <VBox fx:id="statsPanel" maxWidth="280.0" minWidth="280.0" prefWidth="280.0" spacing="20.0" style="-fx-background-color: -color-bg-subtle; -fx-border-color: -color-border-muted; -fx-border-width: 0 1 0 0;">
+                     <padding><Insets bottom="30" left="25" right="25" top="30" /></padding>
+                     <children>
+                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Статистика дня" />
+                        <VBox spacing="10" style="-fx-background-color: -color-bg-default; -fx-background-radius: 10; -fx-padding: 15;">
+                           <children>
+                              <Label fx:id="totalTasksLabel" text="Всего задач: 0" />
+                              <Label fx:id="completedTasksLabel" style="-fx-text-fill: -color-success-emphasis;" text="Выполнено: 0" />
+                              <ProgressBar fx:id="dayProgressBar" maxWidth="Infinity" progress="0.0" />
+                              <Label fx:id="percentLabel" style="-fx-font-size: 12px;" text="0%" />
+                           </children>
+                        </VBox>
+                        <Button onAction="#deleteAllTasksForDay" maxWidth="Infinity" styleClass="flat" text="Очистить день" style="-fx-text-fill: -color-danger-emphasis; -fx-border-color: -color-danger-muted;" />
+                     </children>
+                  </VBox>
+
+                  <ScrollPane fx:id="taskScrollPane" fitToWidth="true" hbarPolicy="NEVER" HBox.hgrow="ALWAYS" style="-fx-background: -color-bg-default;">
+                     <content>
+                        <VBox fx:id="taskContainer" spacing="15.0">
+                           <padding><Insets bottom="30" left="30" right="30" top="30" /></padding>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
+               </children>
+            </HBox>
+         </center>
+      </BorderPane>
+
+      <StackPane fx:id="overlay" visible="false">
+         <children>
+            <Rectangle fill="#00000088" height="2000.0" width="2000.0" />
+            <VBox spacing="20.0" maxWidth="450.0" maxHeight="-Infinity" style="-fx-background-color: -color-bg-default; -fx-background-radius: 20; -fx-padding: 35;">
+               <children>
+                  <Label style="-fx-font-size: 22px; -fx-font-weight: bold;" text="Новая задача" />
+
+                  <VBox spacing="5">
+                     <Label text="Название" style="-fx-text-fill: -color-fg-muted;" />
+                     <TextField fx:id="titleField" promptText="Что нужно сделать?" />
+                  </VBox>
+
+                  <VBox spacing="5">
+                     <Label text="Описание" style="-fx-text-fill: -color-fg-muted;" />
+                     <TextArea fx:id="descriptionField" prefHeight="80.0" promptText="Детали..." wrapText="true" />
+                  </VBox>
+
+                  <VBox spacing="5">
+                     <Label text="Приоритет" style="-fx-text-fill: -color-fg-muted;" />
+                     <ComboBox fx:id="priorityComboBox" maxWidth="Infinity" prefHeight="35.0" />
+                  </VBox>
+
+                  <VBox spacing="5">
+                     <Label text="Дата" style="-fx-text-fill: -color-fg-muted;" />
+                     <DatePicker fx:id="datePicker" maxWidth="Infinity" />
+                  </VBox>
+
+                  <Label fx:id="errorLabel" managed="false" visible="false" style="-fx-text-fill: -color-danger-emphasis;" />
+
+                  <HBox alignment="CENTER_RIGHT" spacing="15.0">
+                     <children>
+                        <Button onAction="#hideOverlay" text="Отмена" />
+                        <Button fx:id="saveButton" onAction="#handleSave" styleClass="accent" text="Сохранить" prefWidth="120.0" />
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+         </children>
+      </StackPane>
+   </children>
+</StackPane>
