@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 public class TaskService {
 
@@ -55,7 +56,7 @@ public class TaskService {
         taskRepositoryService.save(TaskMapper.toEntity(task));
     }
 
-    public void deleteTask(Task task){
+    public void deleteTask(Task task) {
         taskCache.remove(task.getId());
         taskRepositoryService.delete(TaskMapper.toEntity(task));
     }
@@ -77,13 +78,13 @@ public class TaskService {
         return new ArrayList<>(tasks);
     }
 
-    private void deleteTaskListFromRepository(List<Task> toDelete){
+    private void deleteTaskListFromRepository(List<Task> toDelete) {
         toDelete.forEach(task -> {
-           taskRepositoryService.deleteById(task.getId());
+            taskRepositoryService.deleteById(task.getId());
         });
     }
 
-    public List<Task> getSortedTaskByPriority(){
+    public List<Task> getSortedTaskByPriority() {
         return taskCache.values().stream()
                 .sorted(Comparator.comparing(Task::getPriority).reversed())
                 .sorted(Comparator.comparing(Task::isCompleted))
@@ -94,5 +95,14 @@ public class TaskService {
         if (taskCache.isEmpty()) return;
         deleteTaskListFromRepository(taskCache.values().stream().toList());
         taskCache.clear();
+    }
+
+    public List<Task> dirtySearch(String query) {
+        query = ".*" + String.join(".*", query.toLowerCase().split("")) + ".*";
+        Pattern pattern = Pattern.compile(query);
+
+        return taskCache.values().stream()
+                .filter(task -> pattern.matcher(task.getTitle().toLowerCase()).matches())
+                .toList();
     }
 }
