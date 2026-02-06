@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="tasks_tracker" uuid="e07ad34d-f9f3-420c-82e6-78132ebb2fe6">
+    <data-source source="LOCAL" name="tasks_tracker.db" uuid="12438614-77cf-4b0e-bf7e-995ba582977e">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:$PROJECT_DIR$/tasks_tracker.db</jdbc-url>
+      <jdbc-url>jdbc:sqlite:C:\Users\ilgiz\Desktop\TaskTracker\tasks_tracker.db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

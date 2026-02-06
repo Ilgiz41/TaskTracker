@@ -31,7 +31,7 @@ public class Main extends Application {
 
         MainController mainController = loader.getController();
         TaskService taskService = DomainServiceUtil.getTaskService();
-        taskService.loadCacheByDate(LocalDate.now());
+        taskService.loadTaskCacheForDate(LocalDate.now());
         mainController.refreshTaskList();
         mainController.updateDateDisplay();
     }

@@ -1,15 +1,14 @@
 package org.example.util;
 
 import lombok.Getter;
-import org.example.datasource.repository.TaskRepository;
 import org.example.datasource.repositoryservice.TaskRepositoryService;
 
 public class TaskRepositoryUtil {
     @Getter
-    private static final TaskRepository taskRepository;
+    private final static TaskRepositoryService taskRepositoryService;
 
     static {
-        taskRepository = new TaskRepositoryService();
+        taskRepositoryService = new TaskRepositoryService();
     }
 
 }

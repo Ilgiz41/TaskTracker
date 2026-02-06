@@ -1,34 +1,56 @@
 package org.example.domain.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.example.domain.service.TaskService;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Comparator;
 
+@AllArgsConstructor
 @NoArgsConstructor
-public class Task {
+public abstract class Task implements Comparable<Task> {
 
     @Getter @Setter
-    private long id;
+    protected TaskId id;
     @Getter @Setter
-    private String title;
+    protected String title;
     @Getter @Setter
-    private String description;
+    protected String description;
     @Getter @Setter
-    private LocalDate date;
+    protected int priority;
     @Getter @Setter
-    private boolean completed;
-    @Getter @Setter
-    private int priority;
+    protected LocalDate date;
 
-    public Task(String title, String description, LocalDate date, boolean completed,  int priority) {
+    protected Task(String title, String description, int priority, LocalDate date) {
         this.title = title;
         this.description = description;
-        this.date = date;
-        this.completed = completed;
         this.priority = priority;
+        this.date = date;
+    }
+
+    public abstract void delete(TaskService taskService, LocalDate selectedDay);
+    public abstract void update(TaskService taskService, LocalDate selectedDay, TaskUpdatePayload payload);
+
+    @Override
+    public int compareTo(Task o) {
+        return Comparator.comparing(Task::isCompleted).reversed()
+                .thenComparing(Task::isRegular)
+                .thenComparing(Task::getPriority).reversed()
+                .compare(this, o);
+    }
+
+    public Long getRawId() {
+        return id == null ? null : id.id();
+    }
+
+    public boolean isCompleted() {
+        return false;
+    }
+
+    public boolean isRegular() {
+        return true;
     }
 }

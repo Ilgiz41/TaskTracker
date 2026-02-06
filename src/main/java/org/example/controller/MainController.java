@@ -15,16 +15,17 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.util.Duration;
 import org.example.domain.model.Task;
+import org.example.domain.model.TaskUpdatePayload;
 import org.example.domain.service.TaskService;
 import org.example.exceptions.ValidationException;
 import org.example.util.DomainServiceUtil;
 
 import java.net.URL;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Locale;
-import java.util.ResourceBundle;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class MainController implements Initializable {
 
@@ -60,6 +61,18 @@ public class MainController implements Initializable {
     private TextField searchField;
     @FXML
     private ScrollPane taskScrollPane;
+    @FXML
+    private ToggleButton normalTaskToggle;
+    @FXML
+    private ToggleButton regularTaskToggle;
+    @FXML
+    private ToggleGroup taskTypeGroup;
+    @FXML
+    private VBox daysOfWeekContainer;
+    @FXML
+    private VBox datePickerContainer;
+    @FXML
+    public HBox daysButtonsBox;
 
     private ContextMenu searchResultMenu = new ContextMenu();
 
@@ -67,6 +80,7 @@ public class MainController implements Initializable {
 
     @FXML
     private void showOverlay() {
+        clearDayButtons();
         clearErrorState();
         titleField.clear();
         descriptionField.clear();
@@ -74,6 +88,17 @@ public class MainController implements Initializable {
         descriptionField.setStyle("");
         datePicker.setValue(LocalDate.now());
         overlay.setVisible(true);
+        normalTaskToggle.setSelected(true);
+    }
+
+    private void clearDayButtons() {
+        if (daysButtonsBox != null) {
+            daysButtonsBox.getChildren().forEach(node -> {
+                if (node instanceof ToggleButton btn) {
+                    btn.setSelected(false);
+                }
+            });
+        }
     }
 
     @FXML
@@ -86,14 +111,18 @@ public class MainController implements Initializable {
         try {
             String title = titleField.getText();
             String description = descriptionField.getText();
-            LocalDate date = datePicker.getValue();
             int priority = switch (priorityComboBox.getValue()) {
                 case "Высокий" -> 3;
                 case "Средний" -> 2;
                 default -> 1;
             };
-
-            taskService.createAndSave(title, description, date, selectedDate, priority);
+            if (taskTypeGroup.getSelectedToggle() == regularTaskToggle) {
+                Set<DayOfWeek> selectedDays = getSelectedDays();
+                taskService.createAndSaveRegularTemplate(title, description, priority, selectedDays, selectedDate);
+            } else {
+                LocalDate date = datePicker.getValue();
+                taskService.createAndSave(title, description, date, selectedDate, priority);
+            }
             hideOverlay();
             refreshTaskList();
         } catch (ValidationException ex) {
@@ -107,7 +136,7 @@ public class MainController implements Initializable {
     @FXML
     public void refreshTaskList() {
         taskContainer.getChildren().clear();
-        List<Task> taskList = taskService.getSortedTaskByPriority();
+        List<Task> taskList = taskService.getSortedTaskDtoByPriority();
         updateStatistic(taskList);
         if (taskList.isEmpty()) {
             Label emptyLabel = new Label("No tasks found");
@@ -115,7 +144,6 @@ public class MainController implements Initializable {
             taskContainer.getChildren().add(emptyLabel);
             return;
         }
-
         for (Task task : taskList) {
             HBox taskCard = createCard(task);
             taskContainer.getChildren().add(taskCard);
@@ -129,7 +157,6 @@ public class MainController implements Initializable {
         card.setAlignment(Pos.TOP_LEFT);
         String priorityColor;
         String priorityText;
-
         switch (task.getPriority()) {
             case 3 -> {
                 priorityColor = "#e74c3c";
@@ -144,13 +171,11 @@ public class MainController implements Initializable {
                 priorityText = "Низкий";
             }
         }
-
         card.setStyle(String.format(
                 "-fx-background-color: -color-bg-subtle; -fx-background-radius: 12; " +
                         "-fx-border-color: %s; -fx-border-width: 1.5; -fx-border-radius: 12;",
                 priorityColor
         ));
-
         VBox textContent = new VBox(5);
         HBox.setHgrow(textContent, Priority.ALWAYS);
         textContent.setMinWidth(0);
@@ -168,7 +193,6 @@ public class MainController implements Initializable {
                     textContent.getChildren().set(index, pCombo);
                     pCombo.requestFocus();
                     pCombo.show();
-
                     pCombo.setOnAction(ae -> {
                         String selected = pCombo.getValue();
                         if (selected != null) {
@@ -178,15 +202,14 @@ public class MainController implements Initializable {
                                 default -> 1;
                             };
                             if (task.getPriority() != newP) {
-                                task.setPriority(newP);
-                                taskService.updateTask(task, selectedDate);
+                                TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), task.getDescription(), newP, task.getDate(), task.isCompleted());
+                                taskService.updateTask(task, selectedDate, taskUpdatePayload);
                                 refreshTaskList();
                             } else {
                                 textContent.getChildren().set(index, pLabel);
                             }
                         }
                     });
-
                     pCombo.setOnHidden(ce -> {
                         Platform.runLater(() -> {
                             if (textContent.getChildren().contains(pCombo)) {
@@ -252,7 +275,6 @@ public class MainController implements Initializable {
             card.setStyle(card.getStyle() + "-fx-border-color: -color-border-muted;");
         }
         textContent.getChildren().addAll(pLabel, title, desc);
-
         Button statusBtn = new Button();
         statusBtn.setMinWidth(110);
         statusBtn.setMaxWidth(110);
@@ -261,22 +283,22 @@ public class MainController implements Initializable {
 
         MenuItem completeItem = new MenuItem(task.isCompleted() ? "Вернуть в работу" : "Завершить");
         completeItem.setOnAction(e -> {
-            task.setCompleted(!task.isCompleted());
-            taskService.updateTask(task, selectedDate);
+            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), task.getDescription(), task.getPriority(), task.getDate(), !task.isCompleted());
+            taskService.updateTask(task, selectedDate, taskUpdatePayload);
             refreshTaskList();
         });
 
         MenuItem moveItem = new MenuItem("Перенести на завтра");
         moveItem.setOnAction(e -> {
-            task.setDate(task.getDate().plusDays(1));
-            taskService.updateTask(task, selectedDate);
+            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), task.getDescription(), task.getPriority(), selectedDate.plusDays(1), task.isCompleted());
+            taskService.updateTask(task, selectedDate, taskUpdatePayload);
             refreshTaskList();
         });
 
         MenuItem deleteItem = new MenuItem("Удалить");
         deleteItem.setStyle("-fx-text-fill: #e74c3c;");
         deleteItem.setOnAction(e -> {
-            taskService.deleteTask(task);
+            taskService.deleteTask(task, selectedDate);
             refreshTaskList();
         });
 
@@ -290,9 +312,9 @@ public class MainController implements Initializable {
     private void finalizeTitleEdit(VBox container, TextField field, Label label, Task task, int index) {
         String text = field.getText().trim();
         if (!text.isEmpty()) {
-            task.setTitle(text);
+            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), text, task.getDescription(), task.getPriority(), task.getDate(), task.isCompleted());
             label.setText(text);
-            taskService.updateTask(task, selectedDate);
+            taskService.updateTask(task, selectedDate, taskUpdatePayload);
         }
         container.getChildren().set(index, label);
     }
@@ -300,9 +322,9 @@ public class MainController implements Initializable {
     private void finalizeDescEdit(VBox container, TextArea area, Label label, Task task, int index) {
         if (container.getChildren().contains(area)) {
             String text = area.getText().trim();
-            task.setDescription(text);
+            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), text, task.getPriority(), task.getDate(), task.isCompleted());
             label.setText(text);
-            taskService.updateTask(task, selectedDate);
+            taskService.updateTask(task, selectedDate, taskUpdatePayload);
             container.getChildren().set(index, label);
             refreshTaskList();
         }
@@ -377,7 +399,7 @@ public class MainController implements Initializable {
 
     public void handlePrevDay() {
         selectedDate = selectedDate.minusDays(1);
-        taskService.loadCacheByDate(selectedDate);
+        taskService.loadTaskCacheForDate(selectedDate);
         updateDateDisplay();
         refreshTaskList();
     }
@@ -389,7 +411,7 @@ public class MainController implements Initializable {
     public void handleCalendarAction() {
         if (hiddenDatePicker.getValue() != null) {
             selectedDate = hiddenDatePicker.getValue();
-            taskService.loadCacheByDate(selectedDate);
+            taskService.loadTaskCacheForDate(selectedDate);
             updateDateDisplay();
             refreshTaskList();
         }
@@ -397,7 +419,7 @@ public class MainController implements Initializable {
 
     public void handleNextDay() {
         selectedDate = selectedDate.plusDays(1);
-        taskService.loadCacheByDate(selectedDate);
+        taskService.loadTaskCacheForDate(selectedDate);
         updateDateDisplay();
         refreshTaskList();
     }
@@ -460,12 +482,26 @@ public class MainController implements Initializable {
                 }
             }
         });
-
         priorityComboBox.setButtonCell(priorityComboBox.getCellFactory().call(null));
         searchField.textProperty().addListener((obs, oldText, newText) -> {
             handleSearch(newText);
         });
         searchResultMenu.getStyleClass().add("search-menu");
+        taskTypeGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == regularTaskToggle) {
+                datePickerContainer.setVisible(false);
+                datePickerContainer.setManaged(false);
+                daysOfWeekContainer.setVisible(true);
+                daysOfWeekContainer.setManaged(true);
+            } else {
+                datePickerContainer.setVisible(true);
+                datePickerContainer.setManaged(true);
+                daysOfWeekContainer.setVisible(false);
+                daysOfWeekContainer.setManaged(false);
+            }
+        });
+        normalTaskToggle.setSelected(true);
+        setupDayButtons();
     }
 
     @FXML
@@ -475,8 +511,33 @@ public class MainController implements Initializable {
         alert.setHeaderText("Удалить все задачи на " + currentDateLabel.getText() + "?");
         alert.setContentText("Это действие нельзя будет отменить.");
         if (alert.showAndWait().get() == ButtonType.OK) {
-            taskService.deleteAllTasksForDate();
+            taskService.deleteAllTasksForDate(selectedDate);
             refreshTaskList();
         }
+    }
+
+    private void setupDayButtons() {
+        daysButtonsBox.getChildren().clear();
+        List<String> dayNames = List.of("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс");
+        for (int i = 0; i < dayNames.size(); i++) {
+            ToggleButton btn = new ToggleButton(dayNames.get(i));
+            btn.setUserData(i + 1);
+            btn.setPadding(new Insets(0));
+            btn.setMinWidth(40);
+            btn.setMaxWidth(40);
+            btn.setPrefHeight(40);
+            btn.setCursor(Cursor.HAND);
+            btn.setStyle("-fx-background-radius: 20; -fx-font-size: 13px;");
+            daysButtonsBox.getChildren().add(btn);
+        }
+    }
+
+    private Set<DayOfWeek> getSelectedDays() {
+        return daysButtonsBox.getChildren().stream()
+                .filter(node -> node instanceof ToggleButton)
+                .map(node -> (ToggleButton) node)
+                .filter(ToggleButton::isSelected)
+                .map(btn -> DayOfWeek.of((Integer)btn.getUserData()))
+                .collect(Collectors.toCollection(HashSet::new));
     }
 }

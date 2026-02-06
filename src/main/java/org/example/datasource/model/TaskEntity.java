@@ -1,19 +1,23 @@
 package org.example.datasource.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "Task")
+@NoArgsConstructor
+@AllArgsConstructor
 public class TaskEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Getter
-    private long id;
+    private Long id;
 
     @Column
     @Getter @Setter
@@ -35,14 +39,11 @@ public class TaskEntity {
     @Getter @Setter
     private int priority;
 
-    public TaskEntity() {}
+    @Column
+    @Getter @Setter
+    private boolean isRegularTask;
 
-    public TaskEntity(long id, String title, String description, LocalDate date, boolean completed, int priority) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.date = date;
-        this.completed = completed;
-        this.priority = priority;
-    }
+    @Column
+    @Getter @Setter
+    private Long templateId;
 }
