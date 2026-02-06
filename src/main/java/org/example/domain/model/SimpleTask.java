@@ -8,7 +8,7 @@ import org.example.domain.service.TaskService;
 
 import java.time.LocalDate;
 
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 public class SimpleTask extends Task {
 

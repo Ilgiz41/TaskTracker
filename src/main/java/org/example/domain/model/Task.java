@@ -1,9 +1,6 @@
 package org.example.domain.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.example.domain.service.TaskService;
 
 import java.time.LocalDate;
