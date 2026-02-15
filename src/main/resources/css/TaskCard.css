@@ -1,0 +1,83 @@
+.task-card {
+    -fx-background-color: #1c2128;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-width: 1.5;
+    -fx-border-color: #444c56;
+    -fx-padding: 20;
+    -fx-spacing: 12;
+}
+
+.task-card:hover {
+    -fx-border-color: #58a6ff;
+}
+
+.p-high {
+    -fx-border-color: #f85149;
+}
+
+.p-medium {
+    -fx-border-color: #dbab09;
+}
+
+.p-low {
+    -fx-border-color: #3fb950;
+}
+
+.p-text-high {
+    -fx-text-fill: #f85149;
+}
+
+.p-text-medium {
+    -fx-text-fill: #dbab09;
+}
+
+.p-text-low {
+    -fx-text-fill: #3fb950;
+}
+
+.task-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+}
+
+.task-desc {
+    -fx-font-size: 14px;
+    -fx-text-fill: #768390;
+    -fx-line-spacing: 5px;
+}
+
+.btn-status {
+    -fx-background-radius: 20;
+    -fx-padding: 8 18;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-min-width: 120;
+}
+
+.bg-done {
+    -fx-background-color: #238636;
+}
+
+.bg-process {
+    -fx-background-color: #1f6feb;
+}
+
+.bg-overdue {
+    -fx-background-color: #da3633;
+}
+
+.completed {
+    -fx-opacity: 0.4;
+}
+
+.strikethrough {
+    -fx-strikethrough: true;
+}
+
+.text-area {
+    -fx-control-inner-background: #0d1117;
+    -fx-text-fill: #adbac7;
+    -fx-font-size: 14px;
+}

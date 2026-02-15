@@ -20,30 +20,37 @@ public class TaskEntity {
     private Long id;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private String title;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private String description;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private LocalDate date;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean completed;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private int priority;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean isRegularTask;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private Long templateId;
 }

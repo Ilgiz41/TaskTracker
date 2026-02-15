@@ -12,7 +12,7 @@ public class TaskRepositoryService extends BaseRepository<TaskEntity> {
         super(TaskEntity.class);
     }
 
-    public List<TaskEntity> findAllByDate(LocalDate date){
-            return execute(session -> session.createQuery("FROM TaskEntity WHERE date = :date").setParameter("date", date).getResultList());
+    public List<TaskEntity> findAllByDate(LocalDate date) {
+        return execute(session -> session.createQuery("FROM TaskEntity WHERE date = :date").setParameter("date", date).getResultList());
     }
 }

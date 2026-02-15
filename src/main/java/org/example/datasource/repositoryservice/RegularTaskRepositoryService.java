@@ -2,6 +2,7 @@ package org.example.datasource.repositoryservice;
 
 import org.example.datasource.model.RegularTaskEntity;
 import org.example.datasource.repository.BaseRepository;
+import org.hibernate.Session;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -23,14 +24,11 @@ public class RegularTaskRepositoryService extends BaseRepository<RegularTaskEnti
                 .getResultList());
     }
 
-    public void addExcludedDay(Long id, LocalDate date) {
-        execute(session -> {
-            RegularTaskEntity regularTaskTemplate = findById(id).orElse(null);
-            if (regularTaskTemplate != null) {
-                regularTaskTemplate.getExcludedDays().add(date);
-                save(regularTaskTemplate);
-            }
-            return null;
-        });
+    public void addExcludedDay(Long id, LocalDate date, Session session) {
+        RegularTaskEntity regularTaskTemplate = findById(id).orElse(null);
+        if (regularTaskTemplate != null) {
+            regularTaskTemplate.getExcludedDays().add(date);
+            save(regularTaskTemplate, session);
+        }
     }
 }

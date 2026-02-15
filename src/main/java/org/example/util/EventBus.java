@@ -1,0 +1,30 @@
+package org.example.util;
+
+import org.example.event.Event;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+
+public class EventBus {
+
+    public final Map<Class<? extends Event>, List<Consumer<?>>> listeners;
+
+    public EventBus() {
+        listeners = new HashMap<>();
+    }
+
+    public <T extends Event> void subscribe(Class<T> eventType, Consumer<T> consumer) {
+        listeners.computeIfAbsent(eventType, k -> new ArrayList<>())
+                .add(consumer);
+    }
+
+    @SuppressWarnings("uncheked")
+    public <T extends Event> void publish(T event) {
+        List<Consumer<?>> eventListeners = listeners.get(event.getClass());
+        if (eventListeners == null) return;
+        eventListeners.forEach(s -> ((Consumer<T>) s).accept(event));
+    }
+}

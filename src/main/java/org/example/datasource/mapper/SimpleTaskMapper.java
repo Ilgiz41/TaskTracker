@@ -20,6 +20,6 @@ public class SimpleTaskMapper {
     }
 
     public static TaskEntity toEntity(SimpleTask domain) {
-        return new TaskEntity(domain.getRawId(), domain.getTitle(), domain.getDescription(), domain.getDate(), domain.isCompleted(),  domain.getPriority(), domain.isRegular(), domain.getTemplateId());
+        return new TaskEntity(domain.getRawId(), domain.getTitle(), domain.getDescription(), domain.getDate(), domain.isCompleted(), domain.getPriority(), domain.isRegular(), domain.getTemplateId());
     }
 }

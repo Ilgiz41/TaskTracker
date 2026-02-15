@@ -4,6 +4,7 @@ import org.example.util.HibernateUtil;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -18,8 +19,8 @@ public abstract class BaseRepository<T> {
         this.entityClass = entityClass;
     }
 
-    public T save(T entity) {
-        executeInTransaction(session -> session.merge(entity));
+    public T save(T entity, Session session) {
+        session.merge(entity);
         return entity;
     }
 
@@ -31,25 +32,13 @@ public abstract class BaseRepository<T> {
         return execute(session -> Optional.ofNullable(session.get(entityClass, id)));
     }
 
-    public void deleteById(Long id) {
-        executeInTransaction(session -> session.remove(session.get(entityClass, id)));
+    public void deleteById(Long id, Session session) {
+        session.remove(session.get(entityClass, id));
     }
 
     protected <R> R execute(Function<Session, R> function) {
         try (Session session = sessionFactory.openSession()) {
             return function.apply(session);
-        }
-    }
-
-    protected void executeInTransaction(Consumer<Session> consumer) {
-        Transaction transaction = null;
-        try (Session session = sessionFactory.openSession()) {
-            transaction = session.beginTransaction();
-            consumer.accept(session);
-            transaction.commit();
-        } catch (Exception e) {
-            if (transaction != null) transaction.rollback();
-            throw new RuntimeException("Transaction failed", e);
         }
     }
 }

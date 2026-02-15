@@ -4,21 +4,19 @@ import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.geometry.Side;
-import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.util.Duration;
+import lombok.Getter;
 import org.example.domain.model.Task;
-import org.example.domain.model.TaskUpdatePayload;
 import org.example.domain.service.TaskService;
+import org.example.event.Event.*;
 import org.example.exceptions.ValidationException;
+import org.example.ui.components.TaskCard;
 import org.example.util.DomainServiceUtil;
+import org.example.util.EventBus;
 
 import java.net.URL;
 import java.time.DayOfWeek;
@@ -33,8 +31,9 @@ public class MainController implements Initializable {
 
     @FXML
     private Pane overlay;
+    @Getter
     @FXML
-    private VBox taskContainer;
+    private ListView<Task> taskListView;
     @FXML
     private TextField titleField;
     @FXML
@@ -60,8 +59,6 @@ public class MainController implements Initializable {
     @FXML
     private TextField searchField;
     @FXML
-    private ScrollPane taskScrollPane;
-    @FXML
     private ToggleButton normalTaskToggle;
     @FXML
     private ToggleButton regularTaskToggle;
@@ -75,294 +72,103 @@ public class MainController implements Initializable {
     public HBox daysButtonsBox;
 
     private ContextMenu searchResultMenu = new ContextMenu();
-
     private LocalDate selectedDate = LocalDate.now();
+    private boolean isTemplateMode = false;
+    private final EventBus eventBus = DomainServiceUtil.getEventBus();
 
-    @FXML
-    private void showOverlay() {
-        clearDayButtons();
-        clearErrorState();
-        titleField.clear();
-        descriptionField.clear();
-        titleField.setStyle("");
-        descriptionField.setStyle("");
-        datePicker.setValue(LocalDate.now());
-        overlay.setVisible(true);
-        normalTaskToggle.setSelected(true);
-    }
-
-    private void clearDayButtons() {
-        if (daysButtonsBox != null) {
-            daysButtonsBox.getChildren().forEach(node -> {
-                if (node instanceof ToggleButton btn) {
-                    btn.setSelected(false);
-                }
-            });
-        }
-    }
-
-    @FXML
-    private void hideOverlay() {
-        overlay.setVisible(false);
-    }
-
-    @FXML
-    private void handleSave() {
-        try {
-            String title = titleField.getText();
-            String description = descriptionField.getText();
-            int priority = switch (priorityComboBox.getValue()) {
-                case "Высокий" -> 3;
-                case "Средний" -> 2;
-                default -> 1;
-            };
-            if (taskTypeGroup.getSelectedToggle() == regularTaskToggle) {
-                Set<DayOfWeek> selectedDays = getSelectedDays();
-                taskService.createAndSaveRegularTemplate(title, description, priority, selectedDays, selectedDate);
-            } else {
-                LocalDate date = datePicker.getValue();
-                taskService.createAndSave(title, description, date, selectedDate, priority);
-            }
-            hideOverlay();
-            refreshTaskList();
-        } catch (ValidationException ex) {
-            errorLabel.setText(ex.getMessage());
-            errorLabel.setVisible(true);
-            errorLabel.setManaged(true);
-            titleField.setStyle("-fx-border-color: #e74c3c;");
-        }
-    }
-
-    @FXML
-    public void refreshTaskList() {
-        taskContainer.getChildren().clear();
-        List<Task> taskList = taskService.getSortedTaskDtoByPriority();
-        updateStatistic(taskList);
-        if (taskList.isEmpty()) {
-            Label emptyLabel = new Label("No tasks found");
-            emptyLabel.setStyle("-fx-text-fill: -color-fg-muted; -fx-font-style: italic;");
-            taskContainer.getChildren().add(emptyLabel);
-            return;
-        }
-        for (Task task : taskList) {
-            HBox taskCard = createCard(task);
-            taskContainer.getChildren().add(taskCard);
-        }
-    }
-
-    private HBox createCard(Task task) {
-        HBox card = new HBox();
-        card.setSpacing(15);
-        card.setPadding(new Insets(15));
-        card.setAlignment(Pos.TOP_LEFT);
-        String priorityColor;
-        String priorityText;
-        switch (task.getPriority()) {
-            case 3 -> {
-                priorityColor = "#e74c3c";
-                priorityText = "Высокий";
-            }
-            case 2 -> {
-                priorityColor = "#fbc02d";
-                priorityText = "Средний";
-            }
-            default -> {
-                priorityColor = "#2ecc71";
-                priorityText = "Низкий";
-            }
-        }
-        card.setStyle(String.format(
-                "-fx-background-color: -color-bg-subtle; -fx-background-radius: 12; " +
-                        "-fx-border-color: %s; -fx-border-width: 1.5; -fx-border-radius: 12;",
-                priorityColor
-        ));
-        VBox textContent = new VBox(5);
-        HBox.setHgrow(textContent, Priority.ALWAYS);
-        textContent.setMinWidth(0);
-        Label pLabel = new Label(priorityText);
-        pLabel.setCursor(Cursor.HAND);
-        pLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: " + priorityColor + ";");
-        pLabel.setOnMouseClicked(e -> {
-            if (!task.isCompleted()) {
-                ComboBox<String> pCombo = new ComboBox<>();
-                pCombo.getItems().addAll("Низкий", "Средний", "Высокий");
-                pCombo.setValue(priorityText);
-                pCombo.setPrefWidth(120);
-                int index = textContent.getChildren().indexOf(pLabel);
-                if (index != -1) {
-                    textContent.getChildren().set(index, pCombo);
-                    pCombo.requestFocus();
-                    pCombo.show();
-                    pCombo.setOnAction(ae -> {
-                        String selected = pCombo.getValue();
-                        if (selected != null) {
-                            int newP = switch (selected) {
-                                case "Высокий" -> 3;
-                                case "Средний" -> 2;
-                                default -> 1;
-                            };
-                            if (task.getPriority() != newP) {
-                                TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), task.getDescription(), newP, task.getDate(), task.isCompleted());
-                                taskService.updateTask(task, selectedDate, taskUpdatePayload);
-                                refreshTaskList();
-                            } else {
-                                textContent.getChildren().set(index, pLabel);
-                            }
-                        }
-                    });
-                    pCombo.setOnHidden(ce -> {
-                        Platform.runLater(() -> {
-                            if (textContent.getChildren().contains(pCombo)) {
-                                textContent.getChildren().set(index, pLabel);
-                            }
-                        });
-                    });
+    @Override
+    public void initialize(URL url, ResourceBundle rb) {
+        Platform.runLater(() -> {
+            if (taskListView.getScene() != null) {
+                String css = Objects.requireNonNull(getClass().getResource("/css/TaskCard.css")).toExternalForm();
+                if (!taskListView.getScene().getStylesheets().contains(css)) {
+                    taskListView.getScene().getStylesheets().add(css);
                 }
             }
         });
-        Label title = new Label(task.getTitle());
-        title.setWrapText(true);
-        title.setMaxWidth(Double.MAX_VALUE);
-        title.setCursor(Cursor.HAND);
-        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-        title.setOnMouseClicked(e -> {
-            if (!task.isCompleted()) {
-                TextField titleEdit = new TextField(title.getText());
-                titleEdit.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-                int index = textContent.getChildren().indexOf(title);
-                textContent.getChildren().set(index, titleEdit);
-                titleEdit.requestFocus();
-                titleEdit.setOnAction(ae -> finalizeTitleEdit(textContent, titleEdit, title, task, index));
-                titleEdit.focusedProperty().addListener((obs, ov, nv) -> {
-                    if (!nv) finalizeTitleEdit(textContent, titleEdit, title, task, index);
-                });
+
+        taskListView.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(Task item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                    setStyle("-fx-background-color: transparent;");
+                } else {
+                    setGraphic(new TaskCard(item, taskService, MainController.this, isTemplateMode, selectedDate));
+                    setStyle("-fx-background-color: transparent; -fx-padding: 5;");
+                }
             }
         });
-        Label desc = new Label(task.getDescription());
-        desc.setWrapText(true);
-        desc.setMaxWidth(Double.MAX_VALUE);
-        desc.setCursor(Cursor.HAND);
-        desc.setStyle("-fx-text-fill: -color-fg-muted; -fx-font-size: 14px;");
-        desc.setOnMouseClicked(e -> {
-            if (!task.isCompleted()) {
-                TextArea descEdit = new TextArea(desc.getText());
-                descEdit.setWrapText(true);
-                descEdit.setPrefRowCount(3);
-                int index = textContent.getChildren().indexOf(desc);
-                textContent.getChildren().set(index, descEdit);
-                descEdit.requestFocus();
-                descEdit.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                    if (event.getCode() == KeyCode.ENTER) {
-                        if (event.isShiftDown()) {
-                            descEdit.appendText("\n");
-                            event.consume();
-                        } else {
-                            finalizeDescEdit(textContent, descEdit, desc, task, index);
-                            event.consume();
+
+        setupPriorityComboBox();
+        setupSearchLogic();
+        setupTaskTypeToggle();
+        setupDayButtons();
+        updateDateDisplay();
+        refreshTaskList();
+
+        eventBus.subscribe(SimpleTaskChanged.class, e -> refreshTaskList());
+    }
+
+    public void smoothScrollToTask(Task targetTask) {
+        int index = taskListView.getItems().indexOf(targetTask);
+        if (index == -1) return;
+
+        ScrollBar verticalBar = (ScrollBar) taskListView.lookup(".scroll-bar:vertical");
+
+        if (verticalBar != null) {
+            double targetValue = (double) index / (taskListView.getItems().size() - 1);
+            Timeline scrollTimeline = new Timeline(
+                    new KeyFrame(Duration.millis(600),
+                            new KeyValue(verticalBar.valueProperty(), targetValue, Interpolator.EASE_BOTH)
+                    )
+            );
+
+            scrollTimeline.setOnFinished(e -> {
+                Platform.runLater(() -> {
+                    for (Node node : taskListView.lookupAll(".list-cell")) {
+                        if (node instanceof ListCell<?> cell) {
+                            if (cell.getItem() != null && cell.getItem().equals(targetTask)) {
+                                runPulseAnimation(cell);
+                                break;
+                            }
                         }
                     }
                 });
-                descEdit.focusedProperty().addListener((obs, ov, nv) -> {
-                    if (!nv && textContent.getChildren().contains(descEdit))
-                        finalizeDescEdit(textContent, descEdit, desc, task, index);
-                });
-            }
-        });
-        if (task.isCompleted()) {
-            title.setStyle(title.getStyle() + "-fx-opacity: 0.5; -fx-strikethrough: true;");
-            desc.setStyle(desc.getStyle() + "-fx-opacity: 0.5;");
-            pLabel.setStyle(pLabel.getStyle() + "-fx-opacity: 0.5;");
-            card.setStyle(card.getStyle() + "-fx-border-color: -color-border-muted;");
-        }
-        textContent.getChildren().addAll(pLabel, title, desc);
-        Button statusBtn = new Button();
-        statusBtn.setMinWidth(110);
-        statusBtn.setMaxWidth(110);
-        updateStatusBtnStyle(statusBtn, task);
-        ContextMenu menu = new ContextMenu();
-
-        MenuItem completeItem = new MenuItem(task.isCompleted() ? "Вернуть в работу" : "Завершить");
-        completeItem.setOnAction(e -> {
-            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), task.getDescription(), task.getPriority(), task.getDate(), !task.isCompleted());
-            taskService.updateTask(task, selectedDate, taskUpdatePayload);
-            refreshTaskList();
-        });
-
-        MenuItem moveItem = new MenuItem("Перенести на завтра");
-        moveItem.setOnAction(e -> {
-            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), task.getDescription(), task.getPriority(), selectedDate.plusDays(1), task.isCompleted());
-            taskService.updateTask(task, selectedDate, taskUpdatePayload);
-            refreshTaskList();
-        });
-
-        MenuItem deleteItem = new MenuItem("Удалить");
-        deleteItem.setStyle("-fx-text-fill: #e74c3c;");
-        deleteItem.setOnAction(e -> {
-            taskService.deleteTask(task, selectedDate);
-            refreshTaskList();
-        });
-
-        menu.getItems().addAll(completeItem, moveItem, new SeparatorMenuItem(), deleteItem);
-        statusBtn.setOnAction(e -> menu.show(statusBtn, Side.BOTTOM, 0, 0));
-        card.getChildren().addAll(textContent, statusBtn);
-        card.setUserData(task);
-        return card;
-    }
-
-    private void finalizeTitleEdit(VBox container, TextField field, Label label, Task task, int index) {
-        String text = field.getText().trim();
-        if (!text.isEmpty()) {
-            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), text, task.getDescription(), task.getPriority(), task.getDate(), task.isCompleted());
-            label.setText(text);
-            taskService.updateTask(task, selectedDate, taskUpdatePayload);
-        }
-        container.getChildren().set(index, label);
-    }
-
-    private void finalizeDescEdit(VBox container, TextArea area, Label label, Task task, int index) {
-        if (container.getChildren().contains(area)) {
-            String text = area.getText().trim();
-            TaskUpdatePayload taskUpdatePayload = new TaskUpdatePayload(task.getId(), task.getTitle(), text, task.getPriority(), task.getDate(), task.isCompleted());
-            label.setText(text);
-            taskService.updateTask(task, selectedDate, taskUpdatePayload);
-            container.getChildren().set(index, label);
-            refreshTaskList();
-        }
-    }
-
-    private void updateStatusBtnStyle(Button btn, Task task) {
-        String color = "#f1c40f";
-        String text = "В процессе";
-        if (task.isCompleted()) {
-            color = "#2ecc71";
-            text = "Готово";
-        } else if (task.getDate().isBefore(LocalDate.now())) {
-            color = "#e74c3c";
-            text = "Просрочено";
-        }
-        btn.setText(text);
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-background-radius: 15;");
-    }
-
-    private void updateStatistic(List<Task> taskList) {
-        long taskCount = taskList.size();
-        long completedTaskCount = taskList.stream().filter(Task::isCompleted).count();
-        totalTasksLabel.setText(String.valueOf(taskCount));
-        completedTasksLabel.setText(String.valueOf(completedTaskCount));
-        if (taskCount > 0 && completedTaskCount > 0) {
-            double progress = (double) completedTaskCount / (double) taskCount;
-            dayProgressBar.setProgress(progress);
-            int percent = (int) (progress * 100);
-            percentLabel.setText(percent + "%");
-            if (percent == 100) {
-                dayProgressBar.setStyle("-fx-accent: #2ecc71;");
-            } else {
-                dayProgressBar.setStyle("");
-            }
+            });
+            scrollTimeline.play();
         } else {
-            dayProgressBar.setProgress(0);
-            percentLabel.setText("0%");
+            taskListView.scrollTo(index);
         }
+    }
+
+    private void runPulseAnimation(Node node) {
+        ScaleTransition st = new ScaleTransition(Duration.millis(300), node);
+        st.setFromX(1.0);
+        st.setFromY(1.0);
+        st.setToX(1.03);
+        st.setToY(1.03);
+        st.setCycleCount(4);
+        st.setAutoReverse(true);
+
+        FadeTransition ft = new FadeTransition(Duration.millis(300), node);
+        ft.setFromValue(1.0);
+        ft.setToValue(0.6);
+        ft.setCycleCount(4);
+        ft.setAutoReverse(true);
+
+        String oldStyle = node.getStyle();
+        node.setStyle(oldStyle + "-fx-background-color: rgba(0, 150, 255, 0.2); -fx-background-radius: 12;");
+
+        ParallelTransition pt = new ParallelTransition(node, st, ft);
+        pt.setOnFinished(e -> {
+            node.setStyle(oldStyle);
+            node.setScaleX(1.0);
+            node.setScaleY(1.0);
+            node.setOpacity(1.0);
+        });
+        pt.play();
     }
 
     private void handleSearch(String query) {
@@ -372,42 +178,33 @@ public class MainController implements Initializable {
         }
 
         List<Task> results = taskService.dirtySearch(query);
+
         if (results.isEmpty()) {
             searchResultMenu.hide();
             return;
         }
 
         searchResultMenu.getItems().clear();
-        for (Task task : results) {
+        results.stream().limit(10).forEach(task -> {
             MenuItem item = new MenuItem(task.getTitle());
             item.setOnAction(e -> {
                 smoothScrollToTask(task);
                 searchField.clear();
             });
             searchResultMenu.getItems().add(item);
-        }
+        });
+
         if (!searchResultMenu.isShowing()) {
             searchResultMenu.show(searchField, Side.BOTTOM, 0, 0);
         }
     }
 
-    private void clearErrorState() {
-        errorLabel.setVisible(false);
-        errorLabel.setManaged(false);
-        errorLabel.setText("");
-    }
-
-    public void handlePrevDay() {
-        selectedDate = selectedDate.minusDays(1);
-        taskService.loadTaskCacheForDate(selectedDate);
-        updateDateDisplay();
-        refreshTaskList();
-    }
-
+    @FXML
     public void openCalendar() {
         hiddenDatePicker.show();
     }
 
+    @FXML
     public void handleCalendarAction() {
         if (hiddenDatePicker.getValue() != null) {
             selectedDate = hiddenDatePicker.getValue();
@@ -417,6 +214,42 @@ public class MainController implements Initializable {
         }
     }
 
+    @FXML
+    public void refreshTaskList() {
+        isTemplateMode = false;
+        List<Task> taskList = taskService.getSortedTaskByPriority();
+        updateStatistic(taskList);
+        taskListView.getItems().setAll(taskList);
+        taskListView.setPlaceholder(new Label("На этот день задач нет"));
+    }
+
+    @FXML
+    public void showRegularTasksManager() {
+        isTemplateMode = true;
+        List<Task> templates = taskService.getAllTemplates();
+        taskListView.getItems().setAll(templates);
+        taskListView.setPlaceholder(new Label("Шаблоны отсутствуют"));
+    }
+
+    @FXML
+    public void deleteAllTasksForDay() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setHeaderText("Удалить все задачи на этот день?");
+        if (alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+            taskService.deleteAllTasksForDate(selectedDate);
+            refreshTaskList();
+        }
+    }
+
+    @FXML
+    public void handlePrevDay() {
+        selectedDate = selectedDate.minusDays(1);
+        taskService.loadTaskCacheForDate(selectedDate);
+        updateDateDisplay();
+        refreshTaskList();
+    }
+
+    @FXML
     public void handleNextDay() {
         selectedDate = selectedDate.plusDays(1);
         taskService.loadTaskCacheForDate(selectedDate);
@@ -424,120 +257,96 @@ public class MainController implements Initializable {
         refreshTaskList();
     }
 
-    public void updateDateDisplay() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d MMMM", new Locale("ru"));
-        String formattedDate = selectedDate.format(formatter);
-        currentDateLabel.setText(formattedDate);
+    private void updateStatistic(List<Task> taskList) {
+        long total = taskList.size();
+        long completed = taskList.stream().filter(Task::isCompleted).count();
+        totalTasksLabel.setText("Всего задач: " + total);
+        completedTasksLabel.setText("Выполнено: " + completed);
+        double progress = (total > 0) ? (double) completed / total : 0;
+        dayProgressBar.setProgress(progress);
+        percentLabel.setText((int) (progress * 100) + "%");
     }
 
-    private void smoothScrollToTask(Task targetTask) {
-        for (Node node : taskContainer.getChildren()) {
-            if (node instanceof HBox card && targetTask.equals(card.getUserData())) {
-                double scrollHeight = taskContainer.getBoundsInLocal().getHeight();
-                double cardY = card.getBoundsInParent().getMinY();
-                double viewportHeight = taskScrollPane.getViewportBounds().getHeight();
-                double targetVValue = (scrollHeight > viewportHeight)
-                        ? cardY / (scrollHeight - viewportHeight)
-                        : 0;
-                targetVValue = Math.max(0, Math.min(1, targetVValue));
-                Timeline timeline = new Timeline();
-                KeyValue kv = new KeyValue(taskScrollPane.vvalueProperty(), targetVValue, Interpolator.EASE_BOTH);
-                KeyFrame kf = new KeyFrame(Duration.millis(600), kv);
-                timeline.getKeyFrames().add(kf);
-                timeline.setOnFinished(e -> showHighlightAnimation(card));
-                timeline.play();
-                break;
-            }
-        }
-    }
-
-    private void showHighlightAnimation(Node node) {
-        FadeTransition ft = new FadeTransition(Duration.millis(200), node);
-        ft.setFromValue(1.0);
-        ft.setToValue(0.6);
-        ft.setCycleCount(4);
-        ft.setAutoReverse(true);
-        ft.setOnFinished(e -> node.setOpacity(1.0));
-        ft.play();
-    }
-
-    @Override
-    public void initialize(URL url, ResourceBundle rb) {
-        priorityComboBox.getItems().addAll("Низкий", "Средний", "Высокий");
+    private void setupPriorityComboBox() {
+        priorityComboBox.getItems().setAll("Низкий", "Средний", "Высокий");
         priorityComboBox.setValue("Низкий");
-        priorityComboBox.setCellFactory(lv -> new ListCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    setText(item);
-                    if (item.equals("Высокий"))
-                        setStyle("-fx-text-fill: -color-danger-emphasis; -fx-font-weight: bold;");
-                    else if (item.equals("Средний"))
-                        setStyle("-fx-text-fill: -color-warning-emphasis; -fx-font-weight: bold;");
-                    else setStyle("-fx-text-fill: -color-success-emphasis; -fx-font-weight: bold;");
-                }
-            }
-        });
-        priorityComboBox.setButtonCell(priorityComboBox.getCellFactory().call(null));
-        searchField.textProperty().addListener((obs, oldText, newText) -> {
-            handleSearch(newText);
-        });
-        searchResultMenu.getStyleClass().add("search-menu");
-        taskTypeGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
-            if (newToggle == regularTaskToggle) {
-                datePickerContainer.setVisible(false);
-                datePickerContainer.setManaged(false);
-                daysOfWeekContainer.setVisible(true);
-                daysOfWeekContainer.setManaged(true);
-            } else {
-                datePickerContainer.setVisible(true);
-                datePickerContainer.setManaged(true);
-                daysOfWeekContainer.setVisible(false);
-                daysOfWeekContainer.setManaged(false);
-            }
-        });
-        normalTaskToggle.setSelected(true);
-        setupDayButtons();
     }
 
-    @FXML
-    private void deleteAllTasksForDay() {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Подтверждение");
-        alert.setHeaderText("Удалить все задачи на " + currentDateLabel.getText() + "?");
-        alert.setContentText("Это действие нельзя будет отменить.");
-        if (alert.showAndWait().get() == ButtonType.OK) {
-            taskService.deleteAllTasksForDate(selectedDate);
-            refreshTaskList();
-        }
+    private void setupSearchLogic() {
+        searchField.textProperty().addListener((obs, old, nv) -> handleSearch(nv));
+    }
+
+    private void setupTaskTypeToggle() {
+        taskTypeGroup.selectedToggleProperty().addListener((obs, old, nv) -> {
+            boolean isRegular = (nv == regularTaskToggle);
+            datePickerContainer.setVisible(!isRegular);
+            datePickerContainer.setManaged(!isRegular);
+            daysOfWeekContainer.setVisible(isRegular);
+            daysOfWeekContainer.setManaged(isRegular);
+        });
     }
 
     private void setupDayButtons() {
         daysButtonsBox.getChildren().clear();
-        List<String> dayNames = List.of("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс");
-        for (int i = 0; i < dayNames.size(); i++) {
-            ToggleButton btn = new ToggleButton(dayNames.get(i));
+        String[] dayNames = {"Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"};
+        for (int i = 0; i < dayNames.length; i++) {
+            ToggleButton btn = new ToggleButton(dayNames[i]);
             btn.setUserData(i + 1);
-            btn.setPadding(new Insets(0));
             btn.setMinWidth(40);
-            btn.setMaxWidth(40);
             btn.setPrefHeight(40);
-            btn.setCursor(Cursor.HAND);
-            btn.setStyle("-fx-background-radius: 20; -fx-font-size: 13px;");
+            btn.setCursor(javafx.scene.Cursor.HAND);
+            btn.setStyle("-fx-background-radius: 20; -fx-border-radius: 20;");
             daysButtonsBox.getChildren().add(btn);
         }
     }
 
     private Set<DayOfWeek> getSelectedDays() {
         return daysButtonsBox.getChildren().stream()
-                .filter(node -> node instanceof ToggleButton)
-                .map(node -> (ToggleButton) node)
-                .filter(ToggleButton::isSelected)
-                .map(btn -> DayOfWeek.of((Integer)btn.getUserData()))
-                .collect(Collectors.toCollection(HashSet::new));
+                .filter(n -> n instanceof ToggleButton && ((ToggleButton) n).isSelected())
+                .map(n -> DayOfWeek.of((Integer) n.getUserData()))
+                .collect(Collectors.toSet());
+    }
+
+    public void updateDateDisplay() {
+        currentDateLabel.setText(selectedDate.format(DateTimeFormatter.ofPattern("d MMMM", new Locale("ru"))));
+    }
+
+    @FXML
+    private void handleSave() {
+        try {
+            String title = titleField.getText();
+            String desc = descriptionField.getText();
+            int priority = switch (priorityComboBox.getValue()) {
+                case "Высокий" -> 3;
+                case "Средний" -> 2;
+                default -> 1;
+            };
+
+            if (taskTypeGroup.getSelectedToggle() == regularTaskToggle) {
+                taskService.createAndSaveRegularTemplate(title, desc, priority, getSelectedDays(), selectedDate);
+            } else {
+                taskService.createAndSave(title, desc, datePicker.getValue(), selectedDate, priority);
+            }
+            hideOverlay();
+            refreshTaskList();
+        } catch (ValidationException ex) {
+            errorLabel.setText(ex.getMessage());
+            errorLabel.setVisible(true);
+            errorLabel.setManaged(true);
+        }
+    }
+
+    @FXML
+    private void showOverlay() {
+        errorLabel.setVisible(false);
+        titleField.clear();
+        descriptionField.clear();
+        datePicker.setValue(selectedDate);
+        overlay.setVisible(true);
+    }
+
+    @FXML
+    private void hideOverlay() {
+        overlay.setVisible(false);
     }
 }

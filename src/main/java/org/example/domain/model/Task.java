@@ -3,22 +3,29 @@ package org.example.domain.model;
 import lombok.*;
 import org.example.domain.service.TaskService;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.Set;
 
 @AllArgsConstructor
 @NoArgsConstructor
 public abstract class Task implements Comparable<Task> {
 
-    @Getter @Setter
+    @Getter
+    @Setter
     protected TaskId id;
-    @Getter @Setter
+    @Getter
+    @Setter
     protected String title;
-    @Getter @Setter
+    @Getter
+    @Setter
     protected String description;
-    @Getter @Setter
+    @Getter
+    @Setter
     protected int priority;
-    @Getter @Setter
+    @Getter
+    @Setter
     protected LocalDate date;
 
     protected Task(String title, String description, int priority, LocalDate date) {
@@ -29,6 +36,7 @@ public abstract class Task implements Comparable<Task> {
     }
 
     public abstract void delete(TaskService taskService, LocalDate selectedDay);
+
     public abstract void update(TaskService taskService, LocalDate selectedDay, TaskUpdatePayload payload);
 
     @Override
@@ -37,6 +45,10 @@ public abstract class Task implements Comparable<Task> {
                 .thenComparing(Task::isRegular)
                 .thenComparing(Task::getPriority).reversed()
                 .compare(this, o);
+    }
+
+    public Set<DayOfWeek> getDayOfWeeks() {
+        return null;
     }
 
     public Long getRawId() {

@@ -17,6 +17,7 @@ import java.util.Set;
 public class RegularTask extends Task {
 
     @Getter
+    @Setter
     private Set<DayOfWeek> dayOfWeeks = new HashSet<>();
 
     @Override

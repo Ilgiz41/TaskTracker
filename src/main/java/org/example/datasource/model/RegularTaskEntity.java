@@ -17,17 +17,21 @@ public class RegularTaskEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Getter @Setter
+    @Getter
+    @Setter
     private long id;
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private String title;
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private String description;
 
     @Column
-    @Getter @Setter
+    @Getter
+    @Setter
     private int priority;
 
     @ElementCollection(fetch = FetchType.EAGER)
@@ -37,7 +41,8 @@ public class RegularTaskEntity {
     )
     @Enumerated(EnumType.STRING)
     @Column(name = "day_of_week")
-    @Getter @Setter
+    @Getter
+    @Setter
     private Set<DayOfWeek> dayOfWeeks = new HashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
@@ -46,7 +51,8 @@ public class RegularTaskEntity {
             joinColumns = @JoinColumn(name = "task_id")
     )
     @Column(name = "excluded_days")
-    @Getter @Setter
+    @Getter
+    @Setter
     private Set<LocalDate> excludedDays = new HashSet<>();
 
     public RegularTaskEntity(String title, String description, int priority, Set<DayOfWeek> dayOfWeeks) {

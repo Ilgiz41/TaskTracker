@@ -12,6 +12,7 @@ public class RegularTaskMapper {
         regularTask.setTitle(regularTaskTemplate.getTitle());
         regularTask.setDescription(regularTaskTemplate.getDescription());
         regularTask.setPriority(regularTaskTemplate.getPriority());
+        regularTask.setDayOfWeeks(regularTaskTemplate.getDayOfWeeks());
         return regularTask;
     }
 
@@ -21,6 +22,7 @@ public class RegularTaskMapper {
         regularTaskTemplate.setTitle(regularTask.getTitle());
         regularTaskTemplate.setDescription(regularTask.getDescription());
         regularTaskTemplate.setPriority(regularTask.getPriority());
+        regularTaskTemplate.setDayOfWeeks(regularTask.getDayOfWeeks());
         return regularTaskTemplate;
     }
 }

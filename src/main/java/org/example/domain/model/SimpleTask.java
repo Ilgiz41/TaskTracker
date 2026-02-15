@@ -12,11 +12,14 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class SimpleTask extends Task {
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean completed;
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean isRegular;
-    @Getter @Setter
+    @Getter
+    @Setter
     private Long templateId;
 
     public SimpleTask(String title, String description, LocalDate date, boolean completed, int priority, boolean isRegularTask, Long templateId) {
@@ -28,8 +31,8 @@ public class SimpleTask extends Task {
     }
 
     @Override
-    public void delete(TaskService taskService,  LocalDate selectedDay) {
-        taskService.deleteSimpleTask(this, selectedDay);
+    public void delete(TaskService taskService, LocalDate selectedDay) {
+        taskService.deleteSimpleTask(this);
     }
 
     @Override
