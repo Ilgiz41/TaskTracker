@@ -17,8 +17,12 @@ public class RegularTaskRepositoryService extends BaseRepository<RegularTaskEnti
 
     public List<RegularTaskEntity> findAllByDate(LocalDate date) {
         DayOfWeek dayOfWeek = date.getDayOfWeek();
-        return execute(session -> session.createQuery("SELECT t FROM  RegularTaskEntity t " +
-                        "JOIN t.dayOfWeeks d LEFT JOIN t.excludedDays ed ON ed =:date WHERE d =:dayOfWeek AND ed IS NULL")
+        return execute(session -> session.createQuery(
+                        "SELECT r FROM RegularTaskEntity r " +
+                                "WHERE r.startDate <= :date " +
+                                "AND :dayOfWeek MEMBER OF r.dayOfWeeks " +
+                                "AND :date NOT MEMBER OF r.excludedDays",
+                        RegularTaskEntity.class)
                 .setParameter("date", date)
                 .setParameter("dayOfWeek", dayOfWeek)
                 .getResultList());

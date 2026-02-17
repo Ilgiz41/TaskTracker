@@ -55,10 +55,15 @@ public class RegularTaskEntity {
     @Setter
     private Set<LocalDate> excludedDays = new HashSet<>();
 
-    public RegularTaskEntity(String title, String description, int priority, Set<DayOfWeek> dayOfWeeks) {
+    @Column(name = "start_date")
+    @Setter
+    LocalDate startDate;
+
+    public RegularTaskEntity(String title, String description, int priority, Set<DayOfWeek> dayOfWeeks, LocalDate startDate) {
         this.title = title;
         this.description = description;
         this.priority = priority;
         this.dayOfWeeks = dayOfWeeks;
+        this.startDate = startDate;
     }
 }

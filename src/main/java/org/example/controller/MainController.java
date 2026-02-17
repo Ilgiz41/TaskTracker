@@ -108,7 +108,7 @@ public class MainController implements Initializable {
         updateDateDisplay();
         refreshTaskList();
 
-        eventBus.subscribe(SimpleTaskChanged.class, e -> refreshTaskList());
+        eventBus.subscribe(TaskCacheChanged.class, e -> refreshTaskList());
     }
 
     public void smoothScrollToTask(Task targetTask) {
@@ -237,7 +237,6 @@ public class MainController implements Initializable {
         alert.setHeaderText("Удалить все задачи на этот день?");
         if (alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
             taskService.deleteAllTasksForDate(selectedDate);
-            refreshTaskList();
         }
     }
 
@@ -328,7 +327,6 @@ public class MainController implements Initializable {
                 taskService.createAndSave(title, desc, datePicker.getValue(), selectedDate, priority);
             }
             hideOverlay();
-            refreshTaskList();
         } catch (ValidationException ex) {
             errorLabel.setText(ex.getMessage());
             errorLabel.setVisible(true);

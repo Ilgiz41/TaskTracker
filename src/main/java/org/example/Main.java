@@ -20,7 +20,6 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-
         Application.setUserAgentStylesheet(new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainScene.fxml"));
         Parent root = loader.load();
@@ -32,7 +31,7 @@ public class Main extends Application {
 
         MainController mainController = loader.getController();
         TaskService taskService = DomainServiceUtil.getTaskService();
-        //createNewTasks(taskService, 10000);
+        //createNewTasks(taskService, 35000);
         taskService.loadTaskCacheForDate(LocalDate.now());
         mainController.refreshTaskList();
         mainController.updateDateDisplay();
@@ -45,7 +44,6 @@ public class Main extends Application {
             Platform.exit();
         });
     }
-
 
     public void createNewTasks(TaskService taskService, int n) {
         for (int i = 0; i < n; i++) {

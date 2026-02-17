@@ -12,29 +12,13 @@
     -fx-border-color: #58a6ff;
 }
 
-.p-high {
-    -fx-border-color: #f85149;
-}
+.p-high { -fx-border-color: #f85149; }
+.p-medium { -fx-border-color: #dbab09; }
+.p-low { -fx-border-color: #3fb950; }
 
-.p-medium {
-    -fx-border-color: #dbab09;
-}
-
-.p-low {
-    -fx-border-color: #3fb950;
-}
-
-.p-text-high {
-    -fx-text-fill: #f85149;
-}
-
-.p-text-medium {
-    -fx-text-fill: #dbab09;
-}
-
-.p-text-low {
-    -fx-text-fill: #3fb950;
-}
+.p-text-high { -fx-text-fill: #f85149; }
+.p-text-medium { -fx-text-fill: #dbab09; }
+.p-text-low { -fx-text-fill: #3fb950; }
 
 .task-title {
     -fx-font-size: 18px;
@@ -46,6 +30,28 @@
     -fx-font-size: 14px;
     -fx-text-fill: #768390;
     -fx-line-spacing: 5px;
+    -fx-wrap-text: true;
+}
+
+.task-desc-edit {
+    -fx-font-size: 14px;
+    -fx-control-inner-background: #0d1117;
+    -fx-text-fill: #adbac7;
+    -fx-background-color: #0d1117;
+    -fx-border-color: #58a6ff;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8;
+}
+
+.task-desc-edit .scroll-pane {
+    -fx-background-color: transparent;
+    -fx-hbar-policy: never;
+    -fx-vbar-policy: never;
+}
+
+.task-desc-edit .content {
+    -fx-background-color: transparent;
 }
 
 .btn-status {
@@ -56,28 +62,8 @@
     -fx-min-width: 120;
 }
 
-.bg-done {
-    -fx-background-color: #238636;
-}
-
-.bg-process {
-    -fx-background-color: #1f6feb;
-}
-
-.bg-overdue {
-    -fx-background-color: #da3633;
-}
-
-.completed {
-    -fx-opacity: 0.4;
-}
-
-.strikethrough {
-    -fx-strikethrough: true;
-}
-
-.text-area {
-    -fx-control-inner-background: #0d1117;
-    -fx-text-fill: #adbac7;
-    -fx-font-size: 14px;
-}
+.bg-done { -fx-background-color: #238636; }
+.bg-process { -fx-background-color: #1f6feb; }
+.bg-overdue { -fx-background-color: #da3633; }
+.completed { -fx-opacity: 0.4; }
+.strikethrough { -fx-strikethrough: true; }

@@ -2,10 +2,10 @@ package org.example.event;
 
 public interface Event {
 
-    record SimpleTaskChanged() implements Event {
+    record TaskCacheChanged() implements Event {
     }
 
-    record RegularTaskChanged() implements Event {
+    record VirtualTaskChanged() implements Event {
     }
 
 }

@@ -1,9 +1,9 @@
 package org.example.ui.components;
 
+import javafx.application.Platform;
 import javafx.geometry.Pos;
-import javafx.geometry.Side;
-import javafx.scene.CacheHint;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -31,200 +31,192 @@ public class TaskCard extends HBox {
         this.controller = controller;
         this.isTemplateMode = isTemplateMode;
         this.selectedDate = selectedDate;
-        this.setCache(true);
-        this.setCacheHint(CacheHint.SPEED);
-        buildUI();
+        this.setSpacing(15);
+        this.buildUI();
     }
 
     private void buildUI() {
-        this.setAlignment(Pos.CENTER_LEFT);
         this.getStyleClass().add("task-card");
         this.getStyleClass().add(getPriorityBorderClass());
+        this.setAlignment(Pos.TOP_LEFT);
         if (task.isCompleted() && !isTemplateMode) this.getStyleClass().add("completed");
-        this.prefWidthProperty().bind(controller.getTaskListView().widthProperty().subtract(25));
-        this.maxWidthProperty().bind(controller.getTaskListView().widthProperty().subtract(25));
-        textContent = new VBox(5);
+        this.prefWidthProperty().bind(controller.getTaskListView().widthProperty().subtract(40));
+        textContent = new VBox(8);
         HBox.setHgrow(textContent, Priority.ALWAYS);
-        textContent.setMinWidth(0);
+
         if (task.isRegular() && !isTemplateMode) {
             textContent.getChildren().add(createRegularBadge());
         }
+
         textContent.getChildren().addAll(
-                createPriorityLabel(),
-                createTitleLabel(),
-                createDescriptionLabel()
+                createPriorityArea(),
+                createTitleArea(),
+                createDescriptionArea()
         );
-        VBox actionBox = new VBox(createStatusButton());
-        actionBox.setAlignment(Pos.CENTER_RIGHT);
-        actionBox.setMinWidth(140);
-        actionBox.setMaxWidth(140);
+
+        VBox actionBox = new VBox(12);
+        actionBox.setAlignment(Pos.TOP_RIGHT);
+        actionBox.setMinWidth(160);
+        actionBox.getChildren().addAll(
+                createStatusButton(),
+                createActionBar()
+        );
+
         this.getChildren().addAll(textContent, actionBox);
     }
 
-    private Label createTitleLabel() {
-        Label title = new Label(task.getTitle());
-        title.getStyleClass().add("task-title");
-        title.setWrapText(true);
-        title.maxWidthProperty().bind(this.prefWidthProperty().subtract(170));
-        if (task.isCompleted() && !isTemplateMode) title.getStyleClass().add("strikethrough");
-        title.setOnMouseClicked(e -> {
-            if (!task.isCompleted() || isTemplateMode) {
-                TextField edit = new TextField(title.getText());
-                edit.maxWidthProperty().bind(title.maxWidthProperty());
-                int index = textContent.getChildren().indexOf(title);
-                textContent.getChildren().set(index, edit);
-                edit.requestFocus();
-                edit.setOnAction(ae -> finalizeTitleEdit(edit, title, index));
-                edit.focusedProperty().addListener((obs, ov, nv) -> {
-                    if (!nv) finalizeTitleEdit(edit, title, index);
-                });
-            }
+    private Node createPriorityArea() {
+        Label label = new Label(getPriorityText());
+        label.getStyleClass().addAll("p-label", getPriorityTextClass());
+        label.setCursor(Cursor.HAND);
+        label.setOnMousePressed(e -> {
+            if (task.isCompleted() && !isTemplateMode) return;
+            ComboBox<String> combo = new ComboBox<>();
+            combo.getItems().addAll("Низкий", "Средний", "Высокий");
+            combo.setValue(getPriorityText());
+            combo.getStyleClass().add("compact-combo");
+            int idx = textContent.getChildren().indexOf(label);
+            textContent.getChildren().set(idx, combo);
+            Platform.runLater(combo::show);
+            combo.valueProperty().addListener((obs, ov, nv) -> {
+                if (nv != null) {
+                    int p = nv.equals("Высокий") ? 3 : nv.equals("Средний") ? 2 : 1;
+                    updateTaskData(task.getTitle(), task.getDescription(), p, task.isCompleted(), task.getDate());
+                }
+            });
+            combo.focusedProperty().addListener((o, ov, nv) -> { if(!nv) textContent.getChildren().set(idx, label); });
         });
-        return title;
+        return label;
     }
 
-    private Label createDescriptionLabel() {
-        Label desc = new Label(task.getDescription());
-        desc.getStyleClass().add("task-desc");
-        desc.setWrapText(true);
-        desc.setTextOverrun(OverrunStyle.ELLIPSIS);
-        desc.maxWidthProperty().bind(this.prefWidthProperty().subtract(170));
-        desc.setOnMouseClicked(e -> {
-            if (!task.isCompleted() || isTemplateMode) {
-                TextArea edit = new TextArea(desc.getText());
-                edit.setWrapText(true);
-                edit.setPrefRowCount(3);
-                edit.maxWidthProperty().bind(desc.maxWidthProperty());
-                int index = textContent.getChildren().indexOf(desc);
-                textContent.getChildren().set(index, edit);
-                edit.requestFocus();
-                edit.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                    if (event.getCode() == KeyCode.ENTER && !event.isShiftDown()) {
-                        finalizeDescEdit(edit, desc, index);
-                        event.consume();
-                    }
-                });
-                edit.focusedProperty().addListener((obs, ov, nv) -> {
-                    if (!nv) finalizeDescEdit(edit, desc, index);
-                });
-            }
+    private Node createTitleArea() {
+        Label label = new Label(task.getTitle());
+        label.getStyleClass().add("task-title");
+        label.setWrapText(true);
+        label.setCursor(Cursor.HAND);
+        label.setOnMousePressed(e -> {
+            if (task.isCompleted() && !isTemplateMode) return;
+            TextField edit = new TextField(task.getTitle());
+            edit.getStyleClass().add("task-title-edit");
+            int idx = textContent.getChildren().indexOf(label);
+            textContent.getChildren().set(idx, edit);
+            Platform.runLater(edit::requestFocus);
+            edit.setOnAction(ae -> {
+                updateTaskData(edit.getText(), task.getDescription(), task.getPriority(), task.isCompleted(), task.getDate());
+                textContent.getChildren().set(idx, label);
+            });
+            edit.focusedProperty().addListener((o, ov, nv) -> {
+                if(!nv && textContent.getChildren().contains(edit)) {
+                    updateTaskData(edit.getText(), task.getDescription(), task.getPriority(), task.isCompleted(), task.getDate());
+                    textContent.getChildren().set(idx, label);
+                }
+            });
         });
-        return desc;
+        return label;
     }
 
-    private Button createStatusButton() {
-        Button btn = new Button();
-        btn.getStyleClass().add("btn-status");
-        btn.setMinWidth(130);
-        btn.setCursor(Cursor.HAND);
-        if (isTemplateMode) {
-            btn.setText("Удалить");
-            btn.getStyleClass().add("bg-overdue");
-            btn.setOnAction(e -> taskService.deleteRegularTemplate(task.getId(), selectedDate));
-        } else {
-            if (task.isCompleted()) {
-                btn.setText("Готово");
-                btn.getStyleClass().add("bg-done");
-            } else if (task.getDate().isBefore(LocalDate.now())) {
-                btn.setText("Просрочено");
-                btn.getStyleClass().add("bg-overdue");
-            } else {
-                btn.setText("В процессе");
-                btn.getStyleClass().add("bg-process");
-            }
-            btn.setOnAction(e -> createActionMenu().show(btn, Side.BOTTOM, 0, 0));
+    private Node createDescriptionArea() {
+        String description = task.getDescription() == null ? "" : task.getDescription();
+        String displayDesc = description.isEmpty() ? "Добавить описание..." : description;
+        Label label = new Label(displayDesc);
+        label.getStyleClass().add("task-desc");
+        label.setWrapText(true);
+        label.setCursor(Cursor.HAND);
+        label.setMaxWidth(800);
+        label.setOnMousePressed(e -> {
+            if (task.isCompleted() && !isTemplateMode) return;
+            TextArea edit = new TextArea(description);
+            edit.setWrapText(true);
+            edit.getStyleClass().add("task-desc-edit-large");
+            long lineBreaks = description.chars().filter(ch -> ch == '\n').count();
+            int rows = Math.max(3, Math.min((description.length() / 180) + (int)lineBreaks + 2, 15));
+            double targetHeight = rows * 24 + 30;
+            edit.setPrefHeight(targetHeight);
+            int idx = textContent.getChildren().indexOf(label);
+            textContent.getChildren().set(idx, edit);
+            Platform.runLater(edit::requestFocus);
+            edit.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (event.getCode() == KeyCode.ENTER && !event.isShiftDown()) {
+                    updateTaskData(task.getTitle(), edit.getText(), task.getPriority(), task.isCompleted(), task.getDate());
+                    textContent.getChildren().set(idx, label);
+                    event.consume();
+                }
+            });
+            edit.focusedProperty().addListener((o, ov, nv) -> {
+                if (!nv && textContent.getChildren().contains(edit)) {
+                    updateTaskData(task.getTitle(), edit.getText(), task.getPriority(), task.isCompleted(), task.getDate());
+                    textContent.getChildren().set(idx, label);
+                }
+            });
+        });
+        return label;
+    }
+
+    private Node createActionBar() {
+        HBox actionBar = new HBox(10);
+        actionBar.setAlignment(Pos.CENTER_RIGHT);
+        if (!isTemplateMode) {
+            CheckBox completedCheck = new CheckBox();
+            completedCheck.setSelected(task.isCompleted());
+            completedCheck.setCursor(Cursor.HAND);
+            completedCheck.setTooltip(new Tooltip("Завершить задачу"));
+            completedCheck.selectedProperty().addListener((obs, ov, nv) -> {
+                updateTaskData(task.getTitle(), task.getDescription(), task.getPriority(), nv, task.getDate());
+            });
+            actionBar.getChildren().add(completedCheck);
         }
-        return btn;
-    }
-
-    private ContextMenu createActionMenu() {
-        ContextMenu menu = new ContextMenu();
-        MenuItem complete = new MenuItem(task.isCompleted() ? "В работу" : "Завершить");
-        complete.setOnAction(e -> updateTaskData(task.getTitle(), task.getDescription(), task.getPriority(), !task.isCompleted()));
-        MenuItem move = new MenuItem("На завтра");
-        move.setOnAction(e -> {
-            TaskUpdatePayload payload = new TaskUpdatePayload(
-                    task.getId(), task.getTitle(), task.getDescription(),
-                    task.getPriority(), selectedDate.plusDays(1), task.isCompleted()
-            );
-            taskService.updateTask(task, selectedDate, payload);
-            controller.refreshTaskList();
-        });
-        MenuItem delete = new MenuItem("Удалить");
-        delete.setOnAction(e -> {
-            taskService.deleteTask(task, selectedDate);
-            controller.refreshTaskList();
-        });
-        menu.getItems().addAll(complete, move, new SeparatorMenuItem(), delete);
-        return menu;
-    }
-
-    private void finalizeTitleEdit(TextField f, Label l, int i) {
-        if (!textContent.getChildren().contains(f)) return;
-        String newTitle = f.getText().trim();
-        textContent.getChildren().set(i, l);
-        if (!newTitle.isEmpty() && !newTitle.equals(task.getTitle())) {
-            updateTaskData(newTitle, task.getDescription(), task.getPriority(), task.isCompleted());
+        if (!isTemplateMode) {
+            Button postponeBtn = new Button("📅");
+            postponeBtn.getStyleClass().add("btn-action-postpone");
+            postponeBtn.setTooltip(new Tooltip("Перенести на завтра (+1 день)"));
+            postponeBtn.setCursor(Cursor.HAND);
+            postponeBtn.setOnAction(e -> {
+                LocalDate tomorrow = task.getDate().plusDays(1);
+                updateTaskData(task.getTitle(), task.getDescription(), task.getPriority(), task.isCompleted(), tomorrow);
+            });
+            actionBar.getChildren().add(postponeBtn);
         }
+        Button deleteBtn = new Button("🗑");
+        deleteBtn.getStyleClass().add("btn-action-delete");
+        deleteBtn.setTooltip(new Tooltip("Удалить задачу"));
+        deleteBtn.setCursor(Cursor.HAND);
+        deleteBtn.setOnAction(e -> taskService.deleteTask(task, selectedDate));
+        actionBar.getChildren().add(deleteBtn);
+        return actionBar;
     }
 
-    private void finalizeDescEdit(TextArea a, Label l, int i) {
-        if (!textContent.getChildren().contains(a)) return;
-        String newDesc = a.getText().trim();
-        textContent.getChildren().set(i, l);
-        if (!newDesc.equals(task.getDescription())) {
-            updateTaskData(task.getTitle(), newDesc, task.getPriority(), task.isCompleted());
-        }
-    }
-
-    private void updateTaskData(String t, String d, int p, boolean c) {
-        TaskUpdatePayload payload = new TaskUpdatePayload(task.getId(), t, d, p, task.getDate(), c);
+    private void updateTaskData(String t, String d, int p, boolean c, LocalDate newDate) {
+        if (t.equals(task.getTitle()) &&
+                d.equals(task.getDescription()) &&
+                p == task.getPriority() &&
+                c == task.isCompleted() &&
+                newDate.equals(task.getDate())) return;
+        TaskUpdatePayload payload = new TaskUpdatePayload(task.getId(), t, d, p, newDate, c);
         if (isTemplateMode) {
             taskService.updateRegularTemplate(task, payload, selectedDate);
         } else {
             taskService.updateTask(task, selectedDate, payload);
         }
-        controller.refreshTaskList();
+    }
+
+    private Button createStatusButton() {
+        String text = task.isCompleted() ? "Готово" : (task.getDate().isBefore(LocalDate.now()) && !isTemplateMode ? "Просрочено" : "В процессе");
+        Button btn = new Button(text);
+        btn.getStyleClass().addAll("btn-status", task.isCompleted() ? "bg-done" : (task.getDate().isBefore(LocalDate.now()) && !isTemplateMode ? "bg-overdue" : "bg-process"));
+        btn.setMinWidth(120);
+        return btn;
     }
 
     private HBox createRegularBadge() {
-        HBox badge = new HBox(5);
-        badge.setAlignment(Pos.CENTER_LEFT);
-        Label icon = new Label("\uD83D\uDD04");
-        icon.getStyleClass().add("regular-icon");
+        Label icon = new Label("🔄");
         Label text = new Label("РЕГУЛЯРНАЯ");
-        text.getStyleClass().add("regular-text");
-        badge.getChildren().addAll(icon, text);
+        HBox badge = new HBox(5, icon, text);
+        badge.getStyleClass().add("regular-badge");
+        badge.setAlignment(Pos.CENTER_LEFT);
         return badge;
     }
 
-    private Label createPriorityLabel() {
-        Label pLabel = new Label(getPriorityText());
-        pLabel.getStyleClass().addAll("p-label", getPriorityTextClass());
-        return pLabel;
-    }
-
-    private String getPriorityBorderClass() {
-        return switch (task.getPriority()) {
-            case 3 -> "p-high";
-            case 2 -> "p-medium";
-            default -> "p-low";
-        };
-    }
-
-    private String getPriorityTextClass() {
-        return switch (task.getPriority()) {
-            case 3 -> "p-text-high";
-            case 2 -> "p-text-medium";
-            default -> "p-text-low";
-        };
-    }
-
-    private String getPriorityText() {
-        return switch (task.getPriority()) {
-            case 3 -> "Высокий";
-            case 2 -> "Средний";
-            default -> "Низкий";
-        };
-    }
+    private String getPriorityBorderClass() { return switch (task.getPriority()) { case 3 -> "p-high"; case 2 -> "p-medium"; default -> "p-low"; }; }
+    private String getPriorityTextClass() { return switch (task.getPriority()) { case 3 -> "p-text-high"; case 2 -> "p-text-medium"; default -> "p-text-low"; }; }
+    private String getPriorityText() { return switch (task.getPriority()) { case 3 -> "Высокий"; case 2 -> "Средний"; default -> "Низкий"; }; }
 }

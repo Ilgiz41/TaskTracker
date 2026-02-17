@@ -45,6 +45,7 @@ public class TaskService {
             TaskEntity taskEntity = taskRepositoryService.save(SimpleTaskMapper.toEntity(task), session);
             if (selectedDate.equals(taskEntity.getDate())) {
                 taskCache.put(new TaskId(taskEntity.getId(), false), SimpleTaskMapper.toDomain(taskEntity));
+                eventBus.publish(new Event.TaskCacheChanged());
             }
         });
     }
@@ -53,19 +54,20 @@ public class TaskService {
         if (title.isEmpty()) throw new ValidationException("Заголовок не может быть пустым");
         if (selectedDays.isEmpty()) throw new ValidationException("Выберите дни для повторения задачи");
         executeInTransaction(session -> {
-            RegularTaskEntity regularTaskEntity = regularTaskRepositoryService.save(new RegularTaskEntity(title, description, priority, selectedDays), session);
+            RegularTaskEntity regularTaskEntity = regularTaskRepositoryService.save(new RegularTaskEntity(title, description, priority, selectedDays, LocalDate.now()), session);
             RegularTask regularTask = RegularTaskMapper.toDomain(regularTaskEntity);
             if (selectedDays.contains(selectedDate.getDayOfWeek())) {
                 regularTask.setDate(selectedDate);
                 taskCache.put(regularTask.getId(), regularTask);
+                eventBus.publish(new Event.TaskCacheChanged());
             }
         });
     }
 
     public void deleteSimpleTask(SimpleTask simpleTask) {
         executeInTransaction(session -> {
-            taskCache.remove(simpleTask.getId());
             taskRepositoryService.deleteById(simpleTask.getRawId(), session);
+            taskCache.remove(simpleTask.getId());
         });
     }
 
@@ -78,6 +80,7 @@ public class TaskService {
 
     public void deleteTask(Task task, LocalDate selectedDate) {
         task.delete(this, selectedDate);
+        eventBus.publish(new Event.TaskCacheChanged());
     }
 
     public void updateSimpleTask(SimpleTask simpleTask, LocalDate selectedDate, TaskUpdatePayload payload) {
@@ -87,8 +90,8 @@ public class TaskService {
         simpleTask.setCompleted(payload.completed());
         simpleTask.setDate(payload.newDate());
         executeInTransaction(session -> {
-            addIfCorrectDate(selectedDate, simpleTask);
             taskRepositoryService.save(SimpleTaskMapper.toEntity(simpleTask), session);
+            addIfCorrectDate(selectedDate, simpleTask);
         });
     }
 
@@ -101,14 +104,15 @@ public class TaskService {
         simpleTaskMaterialized.setDescription(payload.description());
         executeInTransaction(session -> {
             regularTaskRepositoryService.addExcludedDay(regularTask.getRawId(), selectedDate, session);
-            taskCache.remove(regularTask.getId());
             TaskEntity taskEntity = taskRepositoryService.save(SimpleTaskMapper.toEntity(simpleTaskMaterialized), session);
             addIfCorrectDate(selectedDate, SimpleTaskMapper.toDomain(taskEntity));
+            taskCache.remove(regularTask.getId());
         });
     }
 
     public void updateTask(Task task, LocalDate selectedDate, TaskUpdatePayload payload) {
         task.update(this, selectedDate, payload);
+        eventBus.publish(new Event.TaskCacheChanged());
     }
 
     public void updateRegularTemplate(Task task, TaskUpdatePayload payload, LocalDate selectedDate) {
@@ -122,7 +126,6 @@ public class TaskService {
         executeInTransaction(session -> {
             regularTaskRepositoryService.save(RegularTaskMapper.toEntity(regularTask), session);
             if (taskCache.containsKey(regularTask.getId())) taskCache.put(regularTask.getId(), regularTask);
-
         });
     }
 
@@ -149,6 +152,7 @@ public class TaskService {
         } else {
             taskCache.remove(task.getId());
         }
+        eventBus.publish(new Event.TaskCacheChanged());
     }
 
     public void loadTaskCacheForDate(LocalDate date) {
@@ -192,7 +196,7 @@ public class TaskService {
         executeInTransaction(session -> {
             taskCache.values().forEach(task -> task.delete(this, selectedDate));
             taskCache.clear();
-            eventBus.publish(new Event.SimpleTaskChanged());
+            eventBus.publish(new Event.TaskCacheChanged());
         });
     }
 
