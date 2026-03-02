@@ -108,7 +108,7 @@ public class MainController implements Initializable {
         updateDateDisplay();
         refreshTaskList();
 
-        eventBus.subscribe(TaskCacheChanged.class, e -> refreshTaskList());
+        eventBus.subscribe(RefreshFullTaskListEvent.class, e -> refreshTaskList());
     }
 
     public void smoothScrollToTask(Task targetTask) {
@@ -216,19 +216,25 @@ public class MainController implements Initializable {
 
     @FXML
     public void refreshTaskList() {
-        isTemplateMode = false;
-        List<Task> taskList = taskService.getSortedTaskByPriority();
-        updateStatistic(taskList);
-        taskListView.getItems().setAll(taskList);
-        taskListView.setPlaceholder(new Label("На этот день задач нет"));
+        taskService.getSortedTaskByPriority()
+                .thenAccept(tasks -> {
+                    Platform.runLater(() -> {
+                        isTemplateMode = false;
+                        updateStatistic(tasks);
+                        taskListView.getItems().setAll(tasks);
+                        taskListView.setPlaceholder(new Label("На этот день задач нет"));
+                    });
+                });
     }
 
     @FXML
     public void showRegularTasksManager() {
-        isTemplateMode = true;
-        List<Task> templates = taskService.getAllTemplates();
-        taskListView.getItems().setAll(templates);
-        taskListView.setPlaceholder(new Label("Шаблоны отсутствуют"));
+        Platform.runLater(() -> {
+            isTemplateMode = true;
+            List<Task> templates = taskService.getAllTemplates();
+            taskListView.getItems().setAll(templates);
+            taskListView.setPlaceholder(new Label("Шаблоны отсутствуют"));
+        });
     }
 
     @FXML

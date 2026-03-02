@@ -28,7 +28,6 @@ public class RegularTaskEntity {
     @Getter
     @Setter
     private String description;
-
     @Column
     @Getter
     @Setter

@@ -28,11 +28,11 @@ public class RegularTaskRepositoryService extends BaseRepository<RegularTaskEnti
                 .getResultList());
     }
 
-    public void addExcludedDay(Long id, LocalDate date, Session session) {
+    public void addExcludedDay(Long id, LocalDate date) {
         RegularTaskEntity regularTaskTemplate = findById(id).orElse(null);
         if (regularTaskTemplate != null) {
             regularTaskTemplate.getExcludedDays().add(date);
-            save(regularTaskTemplate, session);
+            save(regularTaskTemplate);
         }
     }
 }
