@@ -10,12 +10,12 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.util.Duration;
 import lombok.Getter;
+import lombok.Setter;
 import org.example.domain.model.Task;
 import org.example.domain.service.TaskService;
 import org.example.event.Event.*;
 import org.example.exceptions.ValidationException;
 import org.example.ui.components.TaskCard;
-import org.example.util.DomainServiceUtil;
 import org.example.util.EventBus;
 
 import java.net.URL;
@@ -27,8 +27,9 @@ import java.util.stream.Collectors;
 
 public class MainController implements Initializable {
 
-    private final TaskService taskService = DomainServiceUtil.getTaskService();
+    private final TaskService taskService;
 
+    private final EventBus eventBus;
     @FXML
     private Pane overlay;
     @Getter
@@ -74,19 +75,14 @@ public class MainController implements Initializable {
     private ContextMenu searchResultMenu = new ContextMenu();
     private LocalDate selectedDate = LocalDate.now();
     private boolean isTemplateMode = false;
-    private final EventBus eventBus = DomainServiceUtil.getEventBus();
+
+    public MainController(TaskService taskService, EventBus eventBus) {
+        this.taskService = taskService;
+        this.eventBus = eventBus;
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        Platform.runLater(() -> {
-            if (taskListView.getScene() != null) {
-                String css = Objects.requireNonNull(getClass().getResource("/css/TaskCard.css")).toExternalForm();
-                if (!taskListView.getScene().getStylesheets().contains(css)) {
-                    taskListView.getScene().getStylesheets().add(css);
-                }
-            }
-        });
-
         taskListView.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Task item, boolean empty) {
@@ -106,12 +102,53 @@ public class MainController implements Initializable {
         setupTaskTypeToggle();
         setupDayButtons();
         updateDateDisplay();
-        refreshTaskList();
+    }
 
+    public void initializeEvent(){
+        eventBus.subscribe(UserNotificationEvent.class, e -> Platform.runLater(() -> showMessage(e)));
         eventBus.subscribe(RefreshFullTaskListEvent.class, e -> refreshTaskList());
     }
 
-    public void smoothScrollToTask(Task targetTask) {
+    private void showMessage(UserNotificationEvent event) {
+        String message = "";
+        String styleClass = "notification-info";
+
+        if (event instanceof NotificationEvent ne) {
+            message = ne.getMessage();
+            styleClass = "notification-success";
+        } else if (event instanceof ExceptionEvent ee) {
+            message = "Ошибка: " + (ee.getCause() != null ? ee.getCause().getMessage() : "Неизвестная ошибка");
+            styleClass = "notification-error";
+        }
+
+        showToast(message, styleClass);
+    }
+
+    private void showToast(String message, String styleClass) {
+        Label toast = new Label(message);
+        toast.getStyleClass().addAll("toast-notification", styleClass);
+
+        StackPane root = (StackPane) taskListView.getScene().getRoot();
+        StackPane.setAlignment(toast, javafx.geometry.Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(toast, new javafx.geometry.Insets(0, 20, 20, 0));
+
+        root.getChildren().add(toast);
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), toast);
+        fadeIn.setFromValue(0);
+        fadeIn.setToValue(1);
+
+        PauseTransition pause = new PauseTransition(Duration.seconds(3));
+
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(500), toast);
+        fadeOut.setFromValue(1);
+        fadeOut.setToValue(0);
+        fadeOut.setOnFinished(e -> root.getChildren().remove(toast));
+
+        new SequentialTransition(fadeIn, pause, fadeOut).play();
+    }
+
+    private void smoothScrollToTask(Task targetTask) {
         int index = taskListView.getItems().indexOf(targetTask);
         if (index == -1) return;
 
@@ -200,12 +237,12 @@ public class MainController implements Initializable {
     }
 
     @FXML
-    public void openCalendar() {
+    private void openCalendar() {
         hiddenDatePicker.show();
     }
 
     @FXML
-    public void handleCalendarAction() {
+    private void handleCalendarAction() {
         if (hiddenDatePicker.getValue() != null) {
             selectedDate = hiddenDatePicker.getValue();
             taskService.loadTaskCacheForDate(selectedDate);
@@ -215,7 +252,7 @@ public class MainController implements Initializable {
     }
 
     @FXML
-    public void refreshTaskList() {
+    private void refreshTaskList() {
         taskService.getSortedTaskByPriority()
                 .thenAccept(tasks -> {
                     Platform.runLater(() -> {
@@ -228,26 +265,29 @@ public class MainController implements Initializable {
     }
 
     @FXML
-    public void showRegularTasksManager() {
+    private void showRegularTasksManager() {
         Platform.runLater(() -> {
             isTemplateMode = true;
-            List<Task> templates = taskService.getAllTemplates();
-            taskListView.getItems().setAll(templates);
-            taskListView.setPlaceholder(new Label("Шаблоны отсутствуют"));
+            taskService.getAllTemplates().thenAccept(templates -> {
+                Platform.runLater(() -> {
+                    taskListView.getItems().setAll(templates);
+                    taskListView.setPlaceholder(new Label("Шаблоны отсутствуют"));
+                });
+            });
         });
     }
 
     @FXML
-    public void deleteAllTasksForDay() {
+    private void deleteAllTasksForDay() {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setHeaderText("Удалить все задачи на этот день?");
         if (alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
-            taskService.deleteAllTasksForDate(selectedDate);
+            taskService.clearSelectedDay(selectedDate);
         }
     }
 
     @FXML
-    public void handlePrevDay() {
+    private void handlePrevDay() {
         selectedDate = selectedDate.minusDays(1);
         taskService.loadTaskCacheForDate(selectedDate);
         updateDateDisplay();
@@ -255,7 +295,7 @@ public class MainController implements Initializable {
     }
 
     @FXML
-    public void handleNextDay() {
+    private void handleNextDay() {
         selectedDate = selectedDate.plusDays(1);
         taskService.loadTaskCacheForDate(selectedDate);
         updateDateDisplay();

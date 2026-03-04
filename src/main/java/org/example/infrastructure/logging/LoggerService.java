@@ -2,9 +2,7 @@ package org.example.infrastructure.logging;
 
 import org.example.event.Event;
 import org.example.infrastructure.file.FileService;
-import org.example.util.DomainServiceUtil;
 import org.example.util.EventBus;
-import org.example.util.InfrastructureUtil;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -19,9 +17,9 @@ public class LoggerService {
     private final EventBus eventBus;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    public LoggerService() {
-        this.fileService = InfrastructureUtil.getFileService();
-        this.eventBus = DomainServiceUtil.getEventBus();
+    public LoggerService(FileService fileService, EventBus eventBus) {
+        this.fileService = fileService;
+        this.eventBus = eventBus;
         eventBus.subscribe(Event.CriticalErrorExceptionEvent.class, this::handleException);
     }
 

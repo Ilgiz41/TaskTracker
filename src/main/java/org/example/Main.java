@@ -1,5 +1,6 @@
 package org.example;
 
+import atlantafx.base.theme.PrimerDark;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -7,9 +8,16 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.example.controller.MainController;
+import org.example.datasource.repositoryservice.RegularTaskRepositoryService;
+import org.example.datasource.repositoryservice.TaskRepositoryService;
 import org.example.domain.service.TaskService;
-import org.example.util.DomainServiceUtil;
+import org.example.infrastructure.concurrency.LockManager;
+import org.example.infrastructure.concurrency.TaskDispatcher;
+import org.example.infrastructure.file.FileService;
+import org.example.infrastructure.logging.LoggerService;
+import org.example.util.EventBus;
 
+import java.io.IOException;
 import java.time.LocalDate;
 
 public class Main extends Application {
@@ -20,25 +28,53 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-        Application.setUserAgentStylesheet(new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainScene.fxml"));
-        Parent root = loader.load();
+        initialize(stage);
+    }
 
-        Scene scene = new Scene(root, 800, 600);
-        stage.setTitle("Мой Таск Трекер");
-        stage.setScene(scene);
+    public void initialize(Stage stage) throws IOException {
+        Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
+
+        EventBus eventBus = new EventBus();
+        FileService fileService = new FileService();
+        LockManager lockManager = new LockManager();
+        TaskDispatcher taskDispatcher = new TaskDispatcher(eventBus);
+        LoggerService loggerService = new LoggerService(fileService, eventBus);
+
+        TaskRepositoryService taskRepo = new TaskRepositoryService(eventBus);
+        RegularTaskRepositoryService regRepo = new RegularTaskRepositoryService(eventBus);
+
+        TaskService taskService = new TaskService(taskRepo, regRepo, eventBus, lockManager, taskDispatcher);
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainScene.fxml"));
+        newControllerFactory(loader, taskService, eventBus);
+
+        Parent root = loader.load();
+        MainController controller = loader.getController();
+        controller.initializeEvent();
+        taskService.loadTaskCacheForDate(LocalDate.now());
+        controller.updateDateDisplay();
+
+        stage.setScene(new Scene(root, 1150, 750));
         stage.show();
 
-        MainController mainController = loader.getController();
-        TaskService taskService = DomainServiceUtil.getTaskService();
-        //createNewTasks(taskService, 100);
-        taskService.loadTaskCacheForDate(LocalDate.now());
-        mainController.refreshTaskList();
-        mainController.updateDateDisplay();
         onClose(stage, taskService);
     }
 
-    public void onClose(Stage stage, TaskService taskService) {
+    private void newControllerFactory(FXMLLoader loader, TaskService taskService, EventBus eventBus) {
+        loader.setControllerFactory(clazz -> {
+            if (clazz == MainController.class) {
+                return new MainController(taskService, eventBus);
+            } else {
+                try {
+                    return clazz.getDeclaredConstructor().newInstance();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+    }
+
+    private void onClose(Stage stage, TaskService taskService) {
         stage.setOnCloseRequest(e -> {
             taskService.closeDBConnection();
             Platform.exit();

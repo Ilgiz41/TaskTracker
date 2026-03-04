@@ -1,7 +1,6 @@
 package org.example.datasource.repository;
 
 import org.example.event.Event;
-import org.example.util.DomainServiceUtil;
 import org.example.util.EventBus;
 import org.example.util.HibernateUtil;
 import org.hibernate.Session;
@@ -16,11 +15,12 @@ import java.util.function.Function;
 public abstract class BaseRepository<T> {
 
     private static final SessionFactory sessionFactory = HibernateUtil.getSessionFactory();
-    Class<T> entityClass;
-    EventBus eventBus = DomainServiceUtil.getEventBus();
+    private final Class<T> entityClass;
+    private final EventBus eventBus;
 
-    public BaseRepository(Class<T> entityClass) {
+    public BaseRepository(Class<T> entityClass, EventBus eventBus) {
         this.entityClass = entityClass;
+        this.eventBus = eventBus;
     }
 
     public T save(T entity) {
@@ -59,7 +59,7 @@ public abstract class BaseRepository<T> {
                 if (transaction != null) {
                     transaction.rollback();
                 }
-                eventBus.publish(new Event.CriticalErrorExceptionEvent(e));
+                eventBus.publish(new Event.CriticalErrorExceptionEvent(e, "Ошибка БД"));
             }
         }
     }

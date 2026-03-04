@@ -21,10 +21,14 @@ public class EventBus {
                 .add(consumer);
     }
 
-    @SuppressWarnings("uncheked")
+    @SuppressWarnings("unchecked")
     public <T extends Event> void publish(T event) {
-        List<Consumer<?>> eventListeners = listeners.get(event.getClass());
-        if (eventListeners == null) return;
-        eventListeners.forEach(s -> ((Consumer<T>) s).accept(event));
+        listeners.forEach((eventType, eventListeners) -> {
+            if (eventType.isInstance(event)) {
+                eventListeners.forEach(consumer -> {
+                    ((Consumer<T>) consumer).accept(event);
+                });
+            }
+        });
     }
 }

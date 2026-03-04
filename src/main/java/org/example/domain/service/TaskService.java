@@ -13,17 +13,12 @@ import org.example.infrastructure.concurrency.LockManager;
 import org.example.infrastructure.concurrency.TaskDispatcher;
 import org.example.infrastructure.logging.LoggerService;
 import org.example.util.*;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 
-import java.sql.Time;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -34,18 +29,16 @@ public class TaskService {
     private final TaskRepositoryService taskRepositoryService;
     private final TaskDispatcher taskDispatcher;
     private final LockManager lockManager;
-    private final LoggerService loggerService;
 
     private final Map<TaskId, Task> taskCache;
 
-    public TaskService() {
-        this.taskRepositoryService = TaskRepositoryUtil.getTaskRepositoryService();
-        this.regularTaskRepositoryService = RegularTaskRepositoryUtil.getRegularTaskRepositoryService();
-        this.eventBus = DomainServiceUtil.getEventBus();
+    public TaskService(TaskRepositoryService taskRepositoryService, RegularTaskRepositoryService regularTaskRepositoryService, EventBus eventBus, LockManager lockManager, TaskDispatcher taskDispatcher) {
+        this.taskRepositoryService = taskRepositoryService;
+        this.regularTaskRepositoryService = regularTaskRepositoryService;
+        this.eventBus = eventBus;
         this.taskCache = new ConcurrentHashMap<>();
-        this.lockManager = new LockManager();
-        this.taskDispatcher = InfrastructureUtil.getTaskDispatcher();
-        this.loggerService = InfrastructureUtil.getLoggerService();
+        this.lockManager = lockManager;
+        this.taskDispatcher = taskDispatcher;
     }
 
     public void createAndSave(String title, String description, LocalDate date, LocalDate selectedDate, int priority) {
@@ -53,34 +46,45 @@ public class TaskService {
         if (date == null) throw new ValidationException("Выберите дату для задачи");
         if (date.isBefore(LocalDate.now())) throw new ValidationException("Дата не может быть после текущей");
         taskDispatcher.submitIo(() -> {
-            SimpleTask task = new SimpleTask(title, description, date, false, priority, false, null);
-            return taskRepositoryService.save(SimpleTaskMapper.toEntity(task));
-        }).thenAcceptAsync(task -> {
-            lockManager.writeWithLock(() -> {
-                if (selectedDate.equals(task.getDate())) {
-                    taskCache.put(new TaskId(task.getId(), false), SimpleTaskMapper.toDomain(task));
-                    eventBus.publish(new Event.RefreshFullTaskListEvent());
-                }
-            });
-        }, taskDispatcher.getCpuPool());
+                    return taskRepositoryService.save(new TaskEntity(null, title, description, date, false, priority, false, null));
+                }).thenAcceptAsync(task -> {
+                    taskCache.compute(new TaskId(task.getId(), false), (id, existingTask) -> {
+                        if (selectedDate.equals(task.getDate())) {
+                            return SimpleTaskMapper.toDomain(task);
+                        }
+                        return existingTask;
+                    });
+                }, taskDispatcher.getCpuPool())
+                .thenRun(() -> eventBus.publish(new Event.RefreshFullTaskListEvent()))
+                .exceptionally(e -> {
+                    eventBus.publish(new Event.CriticalErrorExceptionEvent(e, "Не удалось создать задачу"));
+                    return null;
+                });
     }
 
     public void createAndSaveRegularTemplate(String title, String description, int priority, Set<DayOfWeek> selectedDays, LocalDate selectedDate) {
         if (title.isEmpty()) throw new ValidationException("Заголовок не может быть пустым");
         if (selectedDays.isEmpty()) throw new ValidationException("Выберите дни для повторения задачи");
-        RegularTaskEntity regularTaskEntity = regularTaskRepositoryService.save(new RegularTaskEntity(title, description, priority, selectedDays, LocalDate.now()));
-        RegularTask regularTask = RegularTaskMapper.toDomain(regularTaskEntity);
-        if (selectedDays.contains(selectedDate.getDayOfWeek())) {
-            regularTask.setDate(selectedDate);
-            taskCache.put(regularTask.getId(), regularTask);
-            eventBus.publish(new Event.RefreshFullTaskListEvent());
-        }
+        taskDispatcher.submitIo(() -> {
+                    return regularTaskRepositoryService.save(new RegularTaskEntity(title, description, priority, selectedDays, LocalDate.now()));
+                }).thenAcceptAsync(regularTask -> {
+                    taskCache.compute(new TaskId(regularTask.getId(), true), (id, existingTask) -> {
+                        if (regularTask.getDayOfWeeks().contains(selectedDate.getDayOfWeek())) {
+                            return RegularTaskMapper.toDomain(regularTask);
+                        }
+                        return existingTask;
+                    });
+                }, taskDispatcher.getCpuPool())
+                .thenRun(() -> eventBus.publish(new Event.RefreshFullTaskListEvent()))
+                .exceptionally(e -> {
+                    eventBus.publish(new Event.CriticalErrorExceptionEvent(e, "Не удалось создать регулярную задачу"));
+                    return null;
+                });
     }
 
     public void deleteSimpleTask(SimpleTask simpleTask) {
         taskRepositoryService.deleteById(simpleTask.getRawId());
         taskCache.remove(simpleTask.getId());
-
     }
 
     public void deleteRegularTask(RegularTask regularTask, LocalDate selectedDate) {
@@ -89,8 +93,14 @@ public class TaskService {
     }
 
     public void deleteTask(Task task, LocalDate selectedDate) {
-        task.delete(this, selectedDate);
-        eventBus.publish(new Event.RefreshFullTaskListEvent());
+        taskDispatcher.submitIo(() -> {
+                    task.delete(this, selectedDate);
+                    return null;
+                }).thenRun(() -> eventBus.publish(new Event.RefreshFullTaskListEvent()))
+                .exceptionally(e -> {
+                    eventBus.publish(new Event.CriticalErrorExceptionEvent(e.getCause(), "Не удалось удалить выбранную задачу"));
+                    return null;
+                });
     }
 
     public void updateSimpleTask(SimpleTask simpleTask, LocalDate selectedDate, TaskUpdatePayload payload) {
@@ -100,7 +110,21 @@ public class TaskService {
         simpleTask.setCompleted(payload.completed());
         simpleTask.setDate(payload.newDate());
         taskRepositoryService.save(SimpleTaskMapper.toEntity(simpleTask));
-        addIfCorrectDate(selectedDate, simpleTask);
+        lockManager.writeWithLock(() -> {
+            addIfCorrectDate(selectedDate, simpleTask);
+        });
+    }
+
+    public void updateTask(Task task, LocalDate selectedDate, TaskUpdatePayload payload) {
+        taskDispatcher.submitIo(() -> {
+                    task.update(this, selectedDate, payload);
+                    return null;
+                })
+                .thenRun(() -> eventBus.publish(new Event.RefreshFullTaskListEvent()))
+                .exceptionally((e) -> {
+                    eventBus.publish(new Event.CriticalErrorExceptionEvent(e, "Не удалось обновить задачу"));
+                    return null;
+                });
     }
 
     public void updateRegularTask(RegularTask regularTask, LocalDate selectedDate, TaskUpdatePayload payload) {
@@ -112,13 +136,10 @@ public class TaskService {
         simpleTaskMaterialized.setDescription(payload.description());
         regularTaskRepositoryService.addExcludedDay(regularTask.getRawId(), selectedDate);
         TaskEntity taskEntity = taskRepositoryService.save(SimpleTaskMapper.toEntity(simpleTaskMaterialized));
-        addIfCorrectDate(selectedDate, SimpleTaskMapper.toDomain(taskEntity));
-        taskCache.remove(regularTask.getId());
-    }
-
-    public void updateTask(Task task, LocalDate selectedDate, TaskUpdatePayload payload) {
-        task.update(this, selectedDate, payload);
-        eventBus.publish(new Event.RefreshFullTaskListEvent());
+        lockManager.writeWithLock(() -> {
+            addIfCorrectDate(selectedDate, SimpleTaskMapper.toDomain(taskEntity));
+            taskCache.remove(regularTask.getId());
+        });
     }
 
     public void updateRegularTemplate(Task task, TaskUpdatePayload payload, LocalDate selectedDate) {
@@ -129,13 +150,23 @@ public class TaskService {
         regularTask.setPriority(payload.priority());
         regularTask.setDayOfWeeks(task.getDayOfWeeks());
         regularTask.setDate(selectedDate);
-        regularTaskRepositoryService.save(RegularTaskMapper.toEntity(regularTask));
-        if (taskCache.containsKey(regularTask.getId())) taskCache.put(regularTask.getId(), regularTask);
+        taskDispatcher.submitIo(() -> {
+            regularTaskRepositoryService.save(RegularTaskMapper.toEntity(regularTask));
+            lockManager.writeWithLock(() -> {
+                if (taskCache.containsKey(regularTask.getId())) taskCache.put(regularTask.getId(), regularTask);
+            });
+            return null;
+        });
     }
 
     public void deleteRegularTemplate(TaskId id, LocalDate selectedDate) {
-        regularTaskRepositoryService.deleteById(id.id());
-        if (taskCache.containsKey(id) && taskCache.get(id).getDate().equals(selectedDate)) taskCache.remove(id);
+        taskDispatcher.submitIo(() -> {
+            regularTaskRepositoryService.deleteById(id.id());
+            lockManager.writeWithLock(() -> {
+                if (taskCache.containsKey(id) && taskCache.get(id).getDate().equals(selectedDate)) taskCache.remove(id);
+            });
+            return null;
+        });
     }
 
     private SimpleTask materialize(RegularTask regularTask) {
@@ -183,7 +214,7 @@ public class TaskService {
                     });
                 }, taskDispatcher.getCpuPool())
                 .exceptionally(ex -> {
-                    eventBus.publish(new Event.CriticalErrorExceptionEvent(ex.getCause()));
+                    eventBus.publish(new Event.CriticalErrorExceptionEvent(ex.getCause(), "Не удалось загрузить задачи для выбранного дня"));
                     return null;
                 });
     }
@@ -201,21 +232,33 @@ public class TaskService {
     }
 
     public CompletableFuture<List<Task>> getSortedTaskByPriority() {
-        return taskDispatcher.runParallel(() -> taskCache.values().stream()
-                .sorted()
-                .toList());
+        return taskDispatcher.runParallel(() ->
+                taskCache.values().stream()
+                        .sorted()
+                        .toList());
     }
 
-    public void deleteAllTasksForDate(LocalDate selectedDate) {
-        if (taskCache.isEmpty()) return;
+    public void clearSelectedDay(LocalDate selectedDate) {
         taskDispatcher.submitIo(() -> {
-            lockManager.writeWithLock(() -> {
-                taskCache.values().forEach(task -> task.delete(this, selectedDate));
-                taskCache.clear();
-                eventBus.publish(new Event.RefreshFullTaskListEvent());
-            });
-            return null;
-        });
+                    taskRepositoryService.deleteAllByDate(selectedDate);
+                    regularTaskRepositoryService.excludeAllActiveTemplatesForDate(selectedDate);
+                    return null;
+                }).thenAcceptAsync(o -> {
+                    if (taskCache.isEmpty()) return;
+                    lockManager.writeWithLock(() -> {
+                        taskCache.values().stream()
+                                .filter(task -> task.getDate().equals(selectedDate) || task.getDayOfWeeks().contains(selectedDate.getDayOfWeek()))
+                                .forEach(task -> taskCache.remove(task.getId()));
+                    });
+                }, taskDispatcher.getCpuPool())
+                .thenRun(() -> {
+                    eventBus.publish(new Event.RefreshFullTaskListEvent());
+                    eventBus.publish(new Event.UserNotificationEvent.NotificationEvent("Задачи на " + selectedDate + " удалены"));
+                })
+                .exceptionally(ex -> {
+                    eventBus.publish(new Event.CriticalErrorExceptionEvent(ex.getCause(), "Не удалось очистить задачи на выбранный день"));
+                    return null;
+                });
     }
 
     public List<Task> dirtySearch(String query) {
@@ -226,10 +269,11 @@ public class TaskService {
                 .toList();
     }
 
-    public List<Task> getAllTemplates() {
-        return regularTaskRepositoryService.findAll().stream()
-                .map(RegularTaskMapper::toDomain)
-                .collect(Collectors.toCollection(ArrayList::new));
+    public CompletableFuture<List<Task>> getAllTemplates() {
+        return taskDispatcher.runParallel(() ->
+                regularTaskRepositoryService.findAll().stream()
+                        .map(RegularTaskMapper::toDomain)
+                        .collect(Collectors.toCollection(ArrayList::new)));
     }
 
     public void closeDBConnection() {

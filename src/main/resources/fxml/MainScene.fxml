@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.net.URL?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.Rectangle?>
 
-<StackPane prefHeight="750.0" prefWidth="1150.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.MainController">
+<StackPane fx:id="mainStackPane" prefHeight="750.0" prefWidth="1150.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.MainController">
+
+   <stylesheets>
+      <URL value="@/css/main.css" />
+      <URL value="@/css/TaskCard.css" />
+   </stylesheets>
+
    <children>
       <BorderPane>
          <top>

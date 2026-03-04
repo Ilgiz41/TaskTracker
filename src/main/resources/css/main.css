@@ -1,0 +1,61 @@
+.root {
+    -color-bg-default: #0d1117;
+    -color-bg-subtle: #161b22;
+    -color-border-muted: #30363d;
+    -color-accent-emphasis: #58a6ff;
+    -color-danger-emphasis: #f85149;
+    -color-success-emphasis: #3fb950;
+    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.toast-notification {
+    -fx-padding: 12 25;
+    -fx-background-radius: 10;
+    -fx-font-size: 14px;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 10, 0, 0, 5);
+}
+
+.notification-success {
+    -fx-background-color: #238636;
+    -fx-border-color: #2ea043;
+    -fx-border-radius: 10;
+}
+
+.notification-error {
+    -fx-background-color: #da3633;
+    -fx-border-color: #f85149;
+    -fx-border-radius: 10;
+}
+
+.notification-info {
+    -fx-background-color: #388bfd;
+    -fx-border-color: #58a6ff;
+    -fx-border-radius: 10;
+}
+
+.list-view .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-width: 8;
+}
+
+.list-view .scroll-bar:vertical .thumb {
+    -fx-background-color: #30363d;
+    -fx-background-radius: 10;
+}
+
+.list-view .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #484f58;
+}
+
+.text-field, .text-area {
+    -fx-background-color: #0d1117;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 8;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #484f58;
+}
+
+.text-field:focused, .text-area:focused {
+    -fx-border-color: -color-accent-emphasis;
+}

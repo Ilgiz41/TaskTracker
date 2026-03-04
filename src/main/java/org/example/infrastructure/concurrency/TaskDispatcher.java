@@ -2,7 +2,6 @@ package org.example.infrastructure.concurrency;
 
 import lombok.Getter;
 import org.example.event.Event;
-import org.example.util.DomainServiceUtil;
 import org.example.util.EventBus;
 
 import java.util.concurrent.*;
@@ -17,9 +16,13 @@ public class TaskDispatcher {
 
     private final Semaphore ioSemaphore = new Semaphore(10);
 
-    private final EventBus eventBus = DomainServiceUtil.getEventBus();
+    private final EventBus eventBus;
 
     private static final int IO_TIMEOUT_SECONDS = 10;
+
+    public TaskDispatcher(EventBus eventBus) {
+        this.eventBus = eventBus;
+    }
 
     public <T> CompletableFuture<T> submitIo(Supplier<T> task) {
         return CompletableFuture.supplyAsync(() -> {
@@ -28,7 +31,7 @@ public class TaskDispatcher {
                         return task.get();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        eventBus.publish(new Event.CriticalErrorExceptionEvent(e.getCause()));
+                        eventBus.publish(new Event.CriticalErrorExceptionEvent(e.getCause(), "ошибко"));
                         throw new RuntimeException(e);
                     } finally {
                         ioSemaphore.release();
