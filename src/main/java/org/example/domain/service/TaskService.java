@@ -44,7 +44,7 @@ public class TaskService {
     public void createAndSave(String title, String description, LocalDate date, LocalDate selectedDate, int priority) {
         if (title.isEmpty()) throw new ValidationException("Заголовок не может быть пустым");
         if (date == null) throw new ValidationException("Выберите дату для задачи");
-        if (date.isBefore(LocalDate.now())) throw new ValidationException("Дата не может быть после текущей");
+        if (date.isBefore(LocalDate.now())) throw new ValidationException("Невозможно создать задачу до текущей даты");
         taskDispatcher.submitIo(() -> {
                     return taskRepositoryService.save(new TaskEntity(null, title, description, date, false, priority, false, null));
                 }).thenAcceptAsync(task -> {
@@ -70,7 +70,9 @@ public class TaskService {
                 }).thenAcceptAsync(regularTask -> {
                     taskCache.compute(new TaskId(regularTask.getId(), true), (id, existingTask) -> {
                         if (regularTask.getDayOfWeeks().contains(selectedDate.getDayOfWeek())) {
-                            return RegularTaskMapper.toDomain(regularTask);
+                            RegularTask rTask = RegularTaskMapper.toDomain(regularTask);
+                            rTask.setDate(selectedDate);
+                            return rTask;
                         }
                         return existingTask;
                     });
@@ -110,9 +112,7 @@ public class TaskService {
         simpleTask.setCompleted(payload.completed());
         simpleTask.setDate(payload.newDate());
         taskRepositoryService.save(SimpleTaskMapper.toEntity(simpleTask));
-        lockManager.writeWithLock(() -> {
-            addIfCorrectDate(selectedDate, simpleTask);
-        });
+        addIfCorrectDate(selectedDate, simpleTask);
     }
 
     public void updateTask(Task task, LocalDate selectedDate, TaskUpdatePayload payload) {
@@ -137,8 +137,11 @@ public class TaskService {
         regularTaskRepositoryService.addExcludedDay(regularTask.getRawId(), selectedDate);
         TaskEntity taskEntity = taskRepositoryService.save(SimpleTaskMapper.toEntity(simpleTaskMaterialized));
         lockManager.writeWithLock(() -> {
-            addIfCorrectDate(selectedDate, SimpleTaskMapper.toDomain(taskEntity));
             taskCache.remove(regularTask.getId());
+            SimpleTask simpleTask = SimpleTaskMapper.toDomain(taskEntity);
+            if (selectedDate.equals(simpleTask.getDate())) {
+                taskCache.put(simpleTask.getId(), simpleTask);
+            }
         });
     }
 
@@ -152,11 +155,20 @@ public class TaskService {
         regularTask.setDate(selectedDate);
         taskDispatcher.submitIo(() -> {
             regularTaskRepositoryService.save(RegularTaskMapper.toEntity(regularTask));
-            lockManager.writeWithLock(() -> {
-                if (taskCache.containsKey(regularTask.getId())) taskCache.put(regularTask.getId(), regularTask);
-            });
             return null;
-        });
+        }).thenRunAsync(() -> {
+            taskCache.compute(regularTask.getId(), (taskId, existingTask) -> {
+                if (regularTask.getDayOfWeeks().contains(selectedDate.getDayOfWeek())) {
+                    return regularTask;
+                }
+                return null;
+            });
+        }, taskDispatcher.getCpuPool())
+                .thenRun(() -> eventBus.publish(new Event.RefreshFullTaskListEvent()))
+                .exceptionally(e -> {
+                   eventBus.publish(new Event.CriticalErrorExceptionEvent(e, "Не удалось обновить шаблон регулярной задачи"));
+                   return null;
+                });
     }
 
     public void deleteRegularTemplate(TaskId id, LocalDate selectedDate) {
@@ -180,12 +192,12 @@ public class TaskService {
     }
 
     private void addIfCorrectDate(LocalDate selectedDate, Task task) {
-        if (selectedDate.equals(task.getDate())) {
-            taskCache.put(task.getId(), task);
-        } else {
-            taskCache.remove(task.getId());
-        }
-        eventBus.publish(new Event.RefreshFullTaskListEvent());
+        taskCache.computeIfPresent(task.getId(), (id, existingTask) -> {
+            if (task.getDate().equals(selectedDate)) {
+                return task;
+            }
+            return null;
+        });
     }
 
     public void loadTaskCacheForDate(LocalDate date) {

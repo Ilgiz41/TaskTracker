@@ -14,7 +14,7 @@ public class TaskDispatcher {
     @Getter
     private final ExecutorService cpuPool = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
 
-    private final Semaphore ioSemaphore = new Semaphore(10);
+    private final Semaphore ioSemaphore = new Semaphore(3);
 
     private final EventBus eventBus;
 
