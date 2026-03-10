@@ -1,3 +1,18 @@
+@font-face {
+    font-family: 'Noto Sans Condensed';
+    src: url('../fonts/NotoSans_Condensed-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Noto Sans Condensed Bold';
+    src: url('../fonts/NotoSans_Condensed-Bold.ttf');
+}
+
+@font-face {
+    font-family: 'Noto Sans Condensed Medium';
+    src: url('../fonts/NotoSans_Condensed-Medium.ttf');
+}
+
 .root {
     -color-bg-default: #0d1117;
     -color-bg-subtle: #161b22;
@@ -5,7 +20,7 @@
     -color-accent-emphasis: #58a6ff;
     -color-danger-emphasis: #f85149;
     -color-success-emphasis: #3fb950;
-    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    -fx-font-family: "Noto Sans Condensed", sans-serif;
 }
 
 .toast-notification {
@@ -54,6 +69,7 @@
     -fx-border-radius: 8;
     -fx-text-fill: white;
     -fx-prompt-text-fill: #484f58;
+    -fx-font-family: "Noto Sans Condensed";
 }
 
 .text-field:focused, .text-area:focused {

@@ -10,7 +10,7 @@ import java.util.Set;
 
 @AllArgsConstructor
 @NoArgsConstructor
-public abstract class Task implements Comparable<Task> {
+public abstract class Task implements Comparable<Task>, Identifiable<TaskId> {
 
     @Getter
     @Setter

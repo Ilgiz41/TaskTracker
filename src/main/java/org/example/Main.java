@@ -6,11 +6,16 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import org.example.controller.MainController;
 import org.example.datasource.repositoryservice.RegularTaskRepositoryService;
 import org.example.datasource.repositoryservice.TaskRepositoryService;
+import org.example.domain.model.Task;
+import org.example.domain.model.TaskId;
+import org.example.domain.service.TaskCacheService;
 import org.example.domain.service.TaskService;
+import org.example.infrastructure.cache.Cache;
 import org.example.infrastructure.concurrency.LockManager;
 import org.example.infrastructure.concurrency.TaskDispatcher;
 import org.example.infrastructure.file.FileService;
@@ -32,8 +37,12 @@ public class Main extends Application {
     }
 
     public void initialize(Stage stage) throws IOException {
+        Font reg = Font.loadFont(getClass().getResourceAsStream("/fonts/NotoSans_Condensed-Regular.ttf"), 14);
+        Font med = Font.loadFont(getClass().getResourceAsStream("/fonts/NotoSans_Condensed-Medium.ttf"), 14);
+        Font bold = Font.loadFont(getClass().getResourceAsStream("/fonts/NotoSans_Condensed-Bold.ttf"), 14);
         Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
 
+        Cache<TaskId, Task> taskCache = new Cache<>(50);
         EventBus eventBus = new EventBus();
         FileService fileService = new FileService();
         LockManager lockManager = new LockManager();
@@ -42,8 +51,9 @@ public class Main extends Application {
 
         TaskRepositoryService taskRepo = new TaskRepositoryService(eventBus);
         RegularTaskRepositoryService regRepo = new RegularTaskRepositoryService(eventBus);
+        TaskCacheService taskCacheService = new TaskCacheService(taskCache);
 
-        TaskService taskService = new TaskService(taskRepo, regRepo, eventBus, lockManager, taskDispatcher);
+        TaskService taskService = new TaskService(taskRepo, regRepo, eventBus, lockManager, taskDispatcher, taskCacheService);
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainScene.fxml"));
         newControllerFactory(loader, taskService, eventBus);
@@ -57,6 +67,7 @@ public class Main extends Application {
         stage.setScene(new Scene(root, 1150, 750));
         stage.show();
 
+       // createNewTasks(taskService, 10000);
         onClose(stage, taskService);
     }
 

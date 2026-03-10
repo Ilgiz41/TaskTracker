@@ -193,7 +193,7 @@ public class TaskCard extends HBox {
                 newDate.equals(task.getDate())) return;
         TaskUpdatePayload payload = new TaskUpdatePayload(task.getId(), t, d, p, newDate, c);
         if (isTemplateMode) {
-            taskService.updateRegularTemplate(task, payload, selectedDate);
+            //taskService.updateRegularTemplate(task, payload, selectedDate);
         } else {
             taskService.updateTask(task, selectedDate, payload);
         }

@@ -3,6 +3,8 @@ package org.example.infrastructure.concurrency;
 import lombok.Getter;
 import org.example.event.Event;
 import org.example.util.EventBus;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.concurrent.*;
 import java.util.function.Supplier;
@@ -19,6 +21,9 @@ public class TaskDispatcher {
     private final EventBus eventBus;
 
     private static final int IO_TIMEOUT_SECONDS = 10;
+
+    @Getter
+    private final Scheduler cpuSchedulers = Schedulers.fromExecutor(cpuPool);
 
     public TaskDispatcher(EventBus eventBus) {
         this.eventBus = eventBus;
@@ -40,7 +45,7 @@ public class TaskDispatcher {
                 .orTimeout(IO_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
-    public <T> CompletableFuture<T> runParallel(Supplier<T> task) {
+    public <T> CompletableFuture<T> submitCpu(Supplier<T> task) {
         return CompletableFuture.supplyAsync(() -> {
             return task.get();
         }, cpuPool);

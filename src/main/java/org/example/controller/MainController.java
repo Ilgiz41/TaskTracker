@@ -104,7 +104,7 @@ public class MainController implements Initializable {
         updateDateDisplay();
     }
 
-    public void initializeEvent(){
+    public void initializeEvent() {
         eventBus.subscribe(UserNotificationEvent.class, e -> Platform.runLater(() -> showMessage(e)));
         eventBus.subscribe(RefreshFullTaskListEvent.class, e -> refreshTaskList());
     }
@@ -266,13 +266,10 @@ public class MainController implements Initializable {
 
     @FXML
     private void showRegularTasksManager() {
-        Platform.runLater(() -> {
-            isTemplateMode = true;
-            taskService.getAllTemplates().thenAccept(templates -> {
-                Platform.runLater(() -> {
-                    taskListView.getItems().setAll(templates);
-                    taskListView.setPlaceholder(new Label("Шаблоны отсутствуют"));
-                });
+        taskService.getAllTemplates().thenAccept(templates -> {
+            Platform.runLater(() -> {
+                taskListView.getItems().setAll(templates);
+                taskListView.setPlaceholder(new Label("Шаблоны отсутствуют"));
             });
         });
     }

@@ -8,7 +8,6 @@ import org.example.domain.service.TaskService;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
